@@ -57,7 +57,7 @@ export function Sidebar() {
       </div>
 
       {mobileOpen ? (
-        <div className="fixed inset-0 z-40 lg:hidden">
+        <div className="fixed inset-0 z-[1200] lg:hidden">
           <button
             type="button"
             className="absolute inset-0 bg-slate-900/40"

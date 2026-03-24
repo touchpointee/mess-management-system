@@ -26,6 +26,8 @@ export async function PUT(req: Request) {
   try {
     const body = await req.json();
     const businessName = String(body?.businessName ?? "").trim();
+    const address = String(body?.address ?? "").trim();
+    const city = String(body?.city ?? "").trim();
     const lat = Number(body?.lat);
     const lng = Number(body?.lng);
     const breakfastPrice = Number(body?.breakfastPrice);
@@ -34,6 +36,18 @@ export async function PUT(req: Request) {
     if (!businessName) {
       return NextResponse.json(
         { message: "Mess name is required" },
+        { status: 400 }
+      );
+    }
+    if (!address) {
+      return NextResponse.json(
+        { message: "Address is required" },
+        { status: 400 }
+      );
+    }
+    if (!city) {
+      return NextResponse.json(
+        { message: "City is required" },
         { status: 400 }
       );
     }
@@ -57,15 +71,24 @@ export async function PUT(req: Request) {
     const current = await getSystemSettings();
     await prisma.systemSettings.upsert({
       where: { id: "default" },
-      update: { businessName, lat, lng, breakfastPrice, lunchPrice, dinnerPrice },
+      update: {
+        businessName,
+        address,
+        city,
+        lat,
+        lng,
+        breakfastPrice,
+        lunchPrice,
+        dinnerPrice,
+      },
       create: {
         id: "default",
         businessName,
         shortName: current.shortName,
         phone: current.phone,
         supportEmail: current.supportEmail,
-        address: current.address,
-        city: current.city,
+        address,
+        city,
         heroImageUrl: current.heroImageUrl,
         lat,
         lng,
@@ -77,6 +100,8 @@ export async function PUT(req: Request) {
     return NextResponse.json({
       success: true,
       businessName,
+      address,
+      city,
       lat,
       lng,
       breakfastPrice,

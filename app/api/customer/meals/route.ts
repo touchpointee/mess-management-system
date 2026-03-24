@@ -23,7 +23,7 @@ export async function GET(req: Request) {
   const [user, leaves, locations, bookings] = await Promise.all([
     prisma.user.findUnique({
       where: { id: userId },
-      include: { plan: true },
+      select: { startDate: true },
     }),
     prisma.leave.findMany({
       where: { userId, date },
@@ -31,7 +31,7 @@ export async function GET(req: Request) {
     }),
     prisma.deliveryLocation.findMany({
       where: { userId },
-      orderBy: [{ isDefault: "desc" }],
+      orderBy: { isDefault: "desc" },
     }),
     prisma.dayBooking.findMany({
       where: { userId, date },
@@ -39,7 +39,10 @@ export async function GET(req: Request) {
     }),
   ]);
 
-  const hasActivePlan = !!user?.plan?.isActive;
+  const billingStart = user?.startDate ? startOfDay(new Date(user.startDate)) : null;
+  const onOrAfterStart =
+    billingStart === null || startOfDay(date).getTime() >= billingStart.getTime();
+
   const leaveSet = new Set(leaves.map((l) => l.mealType));
   const bookingMap = new Map(
     bookings.map((b) => [b.mealType, b.deliveryLocationId])
@@ -51,9 +54,9 @@ export async function GET(req: Request) {
       const loc = locations.find((l) => l.id === bookId);
       return loc ? { id: loc.id, label: loc.label, address: loc.address } : null;
     }
-    const defaultLoc = locations.find(
-      (l) => l.mealType === mealType && l.isDefault
-    ) ?? locations.find((l) => l.mealType === mealType);
+    const defaultLoc =
+      locations.find((l) => l.mealType === mealType && l.isDefault) ??
+      locations.find((l) => l.mealType === mealType);
     return defaultLoc
       ? { id: defaultLoc.id, label: defaultLoc.label, address: defaultLoc.address }
       : null;
@@ -61,15 +64,15 @@ export async function GET(req: Request) {
 
   const result = {
     B: {
-      active: hasActivePlan && !leaveSet.has(MealType.BREAKFAST),
+      active: onOrAfterStart && !leaveSet.has(MealType.BREAKFAST),
       location: getLocation(MealType.BREAKFAST),
     },
     L: {
-      active: hasActivePlan && !leaveSet.has(MealType.LUNCH),
+      active: onOrAfterStart && !leaveSet.has(MealType.LUNCH),
       location: getLocation(MealType.LUNCH),
     },
     D: {
-      active: hasActivePlan && !leaveSet.has(MealType.DINNER),
+      active: onOrAfterStart && !leaveSet.has(MealType.DINNER),
       location: getLocation(MealType.DINNER),
     },
   };

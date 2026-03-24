@@ -1,50 +1,80 @@
 {
   "pages": {
-    "/layout": [
+    "/admin/settings/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/css/app/layout.css",
-      "static/chunks/app/layout.js"
-    ],
-    "/admin/customers/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/customers/page.js"
+      "static/chunks/app/admin/settings/page.js"
     ],
     "/admin/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/admin/layout.js"
     ],
-    "/admin/delivery-map/page": [
+    "/layout": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/admin/delivery-map/page.js"
-    ],
-    "/admin/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/page.js"
-    ],
-    "/admin/dashboard/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/admin/dashboard/page.js"
+      "static/css/app/layout.css",
+      "static/chunks/app/layout.js"
     ],
     "/(auth)/login/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/(auth)/login/page.js"
     ],
+    "/(auth)/register/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(auth)/register/page.js"
+    ],
+    "/(customer)/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(customer)/page.js"
+    ],
+    "/(customer)/layout": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(customer)/layout.js"
+    ],
+    "/(customer)/my-mess/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(customer)/my-mess/page.js"
+    ],
+    "/(customer)/overview/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(customer)/overview/page.js"
+    ],
+    "/(customer)/account/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/(customer)/account/page.js"
+    ],
     "/admin/payments/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/admin/payments/page.js"
     ],
-    "/admin/settings/page": [
+    "/admin/delivery-map/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/admin/settings/page.js"
+      "static/chunks/app/admin/delivery-map/page.js"
+    ],
+    "/admin-login/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin-login/page.js"
+    ],
+    "/admin/dashboard/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/dashboard/page.js"
+    ],
+    "/admin/customers/page": [
+      "static/chunks/webpack.js",
+      "static/chunks/main-app.js",
+      "static/chunks/app/admin/customers/page.js"
     ],
     "/admin/customers/[id]/page": [
       "static/chunks/webpack.js",

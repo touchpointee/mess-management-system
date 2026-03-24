@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useState } from "react";
 
 type SystemSettingsRes = {
   businessName: string;
+  address: string;
+  city: string;
   lat: number;
   lng: number;
   breakfastPrice: number;
@@ -13,6 +15,8 @@ type SystemSettingsRes = {
 
 export default function AdminSettingsPage() {
   const [businessName, setBusinessName] = useState("Mess");
+  const [address, setAddress] = useState("");
+  const [city, setCity] = useState("");
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
   const [breakfastPrice, setBreakfastPrice] = useState("");
@@ -32,6 +36,8 @@ export default function AdminSettingsPage() {
       })
       .then((data) => {
         setBusinessName(data.businessName || "Mess");
+        setAddress(data.address || "");
+        setCity(data.city || "");
         setLat(String(data.lat ?? ""));
         setLng(String(data.lng ?? ""));
         setBreakfastPrice(String(data.breakfastPrice ?? ""));
@@ -51,6 +57,8 @@ export default function AdminSettingsPage() {
     setSuccess(null);
     const payload = {
       businessName: businessName.trim(),
+      address: address.trim(),
+      city: city.trim(),
       lat: Number(lat),
       lng: Number(lng),
       breakfastPrice: Number(breakfastPrice),
@@ -102,6 +110,28 @@ export default function AdminSettingsPage() {
                   onChange={(e) => setBusinessName(e.target.value)}
                   className="admin-input"
                   placeholder="Enter mess name"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="admin-label">Address</label>
+                <input
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  className="admin-input"
+                  placeholder="Enter mess address"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="admin-label">City</label>
+                <input
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className="admin-input"
+                  placeholder="Enter city"
                   required
                 />
               </div>

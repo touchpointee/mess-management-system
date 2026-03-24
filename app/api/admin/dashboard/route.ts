@@ -11,28 +11,31 @@ export async function GET(req: Request) {
   const today = startOfDay(new Date());
   const tomorrow = addDays(today, 1);
 
-  const [activePlans, leavesToday, leavesTomorrow, allCustomers] = await Promise.all([
-    prisma.plan.findMany({
-      where: { isActive: true },
-      select: { userId: true },
-    }),
-    prisma.leave.findMany({
-      where: { date: today },
-      select: { userId: true, mealType: true },
-    }),
-    prisma.leave.findMany({
-      where: { date: tomorrow },
-      select: { userId: true, mealType: true },
-    }),
-    prisma.user.findMany({
-      where: { role: "CUSTOMER" },
-      include: { plan: true },
-    }),
-  ]);
+  const [subscribedCustomers, leavesToday, leavesTomorrow, allCustomers] =
+    await Promise.all([
+      prisma.user.findMany({
+        where: { role: "CUSTOMER", startDate: { not: null } },
+        select: { id: true },
+      }),
+      prisma.leave.findMany({
+        where: { date: today },
+        select: { userId: true, mealType: true },
+      }),
+      prisma.leave.findMany({
+        where: { date: tomorrow },
+        select: { userId: true, mealType: true },
+      }),
+      prisma.user.findMany({
+        where: { role: "CUSTOMER" },
+        select: { id: true, name: true, startDate: true },
+      }),
+    ]);
 
-  const activeUserIds = new Set(activePlans.map((p) => p.userId));
+  const activeUserIds = new Set(subscribedCustomers.map((u) => u.id));
   const todayLeaveSet = new Set(leavesToday.map((l) => `${l.userId}:${l.mealType}`));
-  const tomorrowLeaveSet = new Set(leavesTomorrow.map((l) => `${l.userId}:${l.mealType}`));
+  const tomorrowLeaveSet = new Set(
+    leavesTomorrow.map((l) => `${l.userId}:${l.mealType}`)
+  );
 
   const countForMeal = (mealType: string, leaveSet: Set<string>) => {
     let n = 0;
@@ -51,7 +54,7 @@ export async function GET(req: Request) {
   const activeCustomers = activeUserIds.size;
 
   const leaveSummary = allCustomers
-    .filter((c) => c.plan?.isActive)
+    .filter((c) => c.startDate)
     .map((c) => {
       const b = todayLeaveSet.has(`${c.id}:BREAKFAST`);
       const l = todayLeaveSet.has(`${c.id}:LUNCH`);

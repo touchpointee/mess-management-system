@@ -16,9 +16,9 @@ export default async function AdminLayout({
     redirect("/admin/login");
   }
   return (
-    <div className="admin-shell flex min-h-screen">
+    <div className="admin-shell flex min-h-screen flex-col lg:flex-row">
       <Sidebar />
-      <div className="flex-1 lg:pl-64">{children}</div>
+      <div className="w-full flex-1 lg:pl-64">{children}</div>
     </div>
   );
 }

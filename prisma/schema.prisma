@@ -17,9 +17,10 @@ model User {
   address   String?
   lat       Float?
   lng       Float?
+  /// Billing anchor: meal charges apply from this date (30-day cycles).
+  startDate DateTime?
   createdAt DateTime @default(now())
 
-  plan        Plan?
   payments    Payment[]
   locations   DeliveryLocation[]
   leaves      Leave[]
@@ -40,15 +41,6 @@ model SystemSettings {
   lunchPrice     Float @default(0)
   dinnerPrice    Float @default(0)
   heroImageUrl String?
-}
-
-model Plan {
-  id         String   @id @default(cuid())
-  userId     String   @unique
-  user       User     @relation(fields: [userId], references: [id])
-  monthlyFee Float
-  startDate  DateTime
-  isActive   Boolean  @default(true)
 }
 
 model Payment {

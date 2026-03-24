@@ -18,7 +18,7 @@ export default async function AdminCustomerDetailPage({
         >
           ← Back to Customers
         </Link>
-        <h1 className="admin-title">Customer Detail</h1>
+        <h1 className="admin-title self-start sm:self-auto">Customer Detail</h1>
       </header>
       <CustomerDetailClient customerId={id} />
     </div>

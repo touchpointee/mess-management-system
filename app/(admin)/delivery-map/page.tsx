@@ -62,7 +62,7 @@ export default function AdminDeliveryMapPage() {
       <header className="admin-page-header">
         <div>
           <h1 className="admin-title">Delivery Map</h1>
-          <p className="admin-subtitle">Plan and review optimized delivery routes by meal.</p>
+          <p className="admin-subtitle">Review optimized delivery routes by meal.</p>
         </div>
       </header>
       <div className="space-y-4">

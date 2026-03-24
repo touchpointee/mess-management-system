@@ -28,11 +28,11 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: "Invalid date" }, { status: 400 });
   }
 
-  const [settings, activePlans, leaves, bookings] = await Promise.all([
+  const [settings, subscribedUsers, leaves, bookings] = await Promise.all([
     getSystemSettings(),
-    prisma.plan.findMany({
-      where: { isActive: true },
-      include: { user: { include: { locations: true } } },
+    prisma.user.findMany({
+      where: { role: "CUSTOMER", startDate: { not: null } },
+      include: { locations: true },
     }),
     prisma.leave.findMany({
       where: { date, mealType: meal },
@@ -47,19 +47,19 @@ export async function GET(req: Request) {
   const bookingMap = new Map(bookings.map((booking) => [booking.userId, booking.deliveryLocationId]));
 
   const stops: { lat: number; lng: number; userId: string; name: string; address: string }[] = [];
-  for (const p of activePlans) {
-    if (leaveUserIds.has(p.userId)) continue;
-    const bookedLocationId = bookingMap.get(p.userId);
+  for (const u of subscribedUsers) {
+    if (leaveUserIds.has(u.id)) continue;
+    const bookedLocationId = bookingMap.get(u.id);
     const location =
-      p.user.locations.find((l) => l.id === bookedLocationId) ??
-      p.user.locations.find((l) => l.mealType === meal && l.isDefault) ??
-      p.user.locations.find((l) => l.mealType === meal);
+      u.locations.find((l) => l.id === bookedLocationId) ??
+      u.locations.find((l) => l.mealType === meal && l.isDefault) ??
+      u.locations.find((l) => l.mealType === meal);
     if (location) {
       stops.push({
         lat: location.lat,
         lng: location.lng,
-        userId: p.userId,
-        name: p.user.name,
+        userId: u.id,
+        name: u.name,
         address: location.address,
       });
     }

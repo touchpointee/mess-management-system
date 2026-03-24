@@ -13,7 +13,6 @@ const schema = z.object({
   address: z.string().optional(),
   lat: z.union([z.number(), z.string()]).optional().transform((v) => (v === "" ? undefined : typeof v === "string" ? (v ? Number(v) : undefined) : v)),
   lng: z.union([z.number(), z.string()]).optional().transform((v) => (v === "" ? undefined : typeof v === "string" ? (v ? Number(v) : undefined) : v)),
-  monthlyFee: z.union([z.number(), z.string()]).optional().transform((v) => (v === "" ? undefined : typeof v === "string" ? (v ? Number(v) : undefined) : v)).refine((v) => v === undefined || v >= 0, "Must be ≥ 0"),
   startDate: z.string().optional(),
 });
 
@@ -39,7 +38,6 @@ export function AddCustomerModal({
       email: "",
       password: "",
       address: "",
-      monthlyFee: undefined,
       startDate: "",
     },
   });
@@ -57,7 +55,6 @@ export function AddCustomerModal({
         address: data.address || undefined,
         lat: data.lat,
         lng: data.lng,
-        monthlyFee: data.monthlyFee,
         startDate: data.startDate || undefined,
       }),
     });
@@ -110,19 +107,13 @@ export function AddCustomerModal({
               <input {...register("lng", { valueAsNumber: true })} type="number" step="any" className="admin-input" />
             </div>
           </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <div>
-              <label className="admin-label">Monthly fee (₹) - optional</label>
-              <input {...register("monthlyFee", { valueAsNumber: true })} type="number" step="0.01" className="admin-input" />
-            </div>
-            <div>
-              <label className="admin-label">Plan start date - optional</label>
-              <input {...register("startDate")} type="date" className="admin-input" />
-            </div>
+          <div>
+            <label className="admin-label">Billing start date (optional)</label>
+            <input {...register("startDate")} type="date" className="admin-input" />
+            <p className="mt-1 text-xs text-slate-500">
+              Meal charges apply from this date; payment cycle is every 30 days from here.
+            </p>
           </div>
-          <p className="text-xs text-slate-500">
-            Note: account balance is now calculated from booked meals and global meal prices.
-          </p>
           {error && <p className="text-red-600 text-sm">{error}</p>}
           <div className="flex flex-col gap-2 pt-2 sm:flex-row">
             <button type="button" onClick={onClose} className="admin-btn-secondary flex-1">

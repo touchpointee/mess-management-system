@@ -9,7 +9,6 @@ type CustomerRow = {
   name: string;
   phone: string;
   email: string | null;
-  planFee: number | null;
   startDate: string | null;
   daysActive: number;
   balanceDue: number;
@@ -40,7 +39,7 @@ export default function AdminCustomersPage() {
       <header className="admin-page-header">
         <div>
           <h1 className="admin-title">Customers</h1>
-          <p className="admin-subtitle">Manage customer profiles, plans, and balances.</p>
+          <p className="admin-subtitle">Manage customer profiles, billing start dates, and balances.</p>
         </div>
         <button
           type="button"

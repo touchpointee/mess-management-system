@@ -10,8 +10,22 @@ export async function GET(req: Request) {
   }
   const customers = await prisma.user.findMany({
     where: { role: "CUSTOMER" },
-    include: { plan: true, payments: true, bookings: { select: { date: true, mealType: true } } },
+    include: { payments: true, bookings: { select: { date: true, mealType: true } } },
   });
+  const customerIds = customers.map((c) => c.id);
+  const allLeaves =
+    customerIds.length === 0
+      ? []
+      : await prisma.leave.findMany({
+          where: { userId: { in: customerIds } },
+          select: { userId: true, date: true, mealType: true },
+        });
+  const leavesByUser = new Map<string, { date: Date; mealType: string }[]>();
+  for (const row of allLeaves) {
+    const list = leavesByUser.get(row.userId) ?? [];
+    list.push({ date: row.date, mealType: row.mealType });
+    leavesByUser.set(row.userId, list);
+  }
   const settings = await prisma.systemSettings.findUnique({
     where: { id: "default" },
     select: { breakfastPrice: true, lunchPrice: true, dinnerPrice: true },
@@ -25,10 +39,12 @@ export async function GET(req: Request) {
   const due = customers
     .map((c) => {
       const billing = getBillingSummary(
+        c.startDate ? new Date(c.startDate) : null,
         c.bookings.map((booking) => ({
           date: booking.date,
           mealType: booking.mealType,
         })),
+        leavesByUser.get(c.id) ?? [],
         mealPrices,
         c.payments.map((payment) => payment.amount),
         today
@@ -37,7 +53,8 @@ export async function GET(req: Request) {
         id: c.id,
         name: c.name,
         phone: c.phone,
-        bookedMeals: billing.cyclesCompleted,
+        cyclesCompleted: billing.cyclesCompleted,
+        billableMeals: billing.billableMealCount,
         totalDue: billing.totalDue,
         totalPaid: billing.totalPaid,
         balance: billing.netBalance,

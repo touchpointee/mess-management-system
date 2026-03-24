@@ -34,13 +34,18 @@ export function getCyclesCompleted(startDate: Date, asOf: Date): number {
   return Math.max(0, Math.floor(days / 30));
 }
 
-type BillingMealPrices = {
+export type BillingMealPrices = {
   breakfastPrice: number;
   lunchPrice: number;
   dinnerPrice: number;
 };
 
-type BillingMealBooking = {
+export type BillingMealBooking = {
+  date: Date;
+  mealType: string;
+};
+
+export type BillingLeave = {
   date: Date;
   mealType: string;
 };
@@ -52,31 +57,74 @@ function getMealUnitPrice(mealType: string, prices: BillingMealPrices): number {
   return 0;
 }
 
-export function getBillingSummary(
+/** Unique key for a calendar day + meal slot (leave / booking matching). */
+export function mealSlotKey(date: Date, mealType: string): string {
+  return `${fnsFormat(startOfDay(date), "yyyy-MM-dd")}:${mealType}`;
+}
+
+export function buildLeaveKeySet(leaves: BillingLeave[]): Set<string> {
+  return new Set(leaves.map((l) => mealSlotKey(l.date, l.mealType)));
+}
+
+/**
+ * Billable meals: on/after startDate (if set), on/before asOf, and not covered by a leave row.
+ */
+export function filterBillableBookings(
   mealBookings: BillingMealBooking[],
+  leaveKeySet: Set<string>,
+  billingStartDate: Date | null,
+  asOf: Date
+): BillingMealBooking[] {
+  const asOfDay = startOfDay(asOf);
+  const anchor = billingStartDate ? startOfDay(billingStartDate) : null;
+  return mealBookings.filter((booking) => {
+    const d = startOfDay(booking.date);
+    if (d.getTime() > asOfDay.getTime()) return false;
+    if (anchor && d.getTime() < anchor.getTime()) return false;
+    if (leaveKeySet.has(mealSlotKey(booking.date, booking.mealType))) return false;
+    return true;
+  });
+}
+
+/**
+ * Meal-price billing: total due = sum of billable booked meals (minus leaves) from billing start.
+ * cyclesCompleted = full 30-day periods since startDate (for next due / overdue messaging).
+ */
+export function getBillingSummary(
+  billingStartDate: Date | null,
+  mealBookings: BillingMealBooking[],
+  leaves: BillingLeave[],
   mealPrices: BillingMealPrices,
   paymentAmounts: number[],
   asOf: Date = new Date()
 ): {
   cyclesCompleted: number;
+  billableMealCount: number;
   totalDue: number;
   totalPaid: number;
   netBalance: number;
   dueAmount: number;
   advanceAmount: number;
 } {
-  const effectiveBookings = mealBookings.filter(
-    (booking) => startOfDay(booking.date).getTime() <= startOfDay(asOf).getTime()
+  const leaveKeySet = buildLeaveKeySet(leaves);
+  const billable = filterBillableBookings(
+    mealBookings,
+    leaveKeySet,
+    billingStartDate,
+    asOf
   );
-  const totalDue = effectiveBookings.reduce(
+  const totalDue = billable.reduce(
     (sum, booking) => sum + getMealUnitPrice(booking.mealType, mealPrices),
     0
   );
   const totalPaid = paymentAmounts.reduce((sum, amount) => sum + amount, 0);
   const netBalance = totalDue - totalPaid;
+  const cyclesCompleted = billingStartDate
+    ? getCyclesCompleted(startOfDay(billingStartDate), asOf)
+    : 0;
   return {
-    // Kept for API compatibility; now represents booked meal count.
-    cyclesCompleted: effectiveBookings.length,
+    cyclesCompleted,
+    billableMealCount: billable.length,
     totalDue,
     totalPaid,
     netBalance,
@@ -177,7 +225,9 @@ export type MonthlyClosingEntry = {
 };
 
 export function buildLedgerAndMonthlyClosing(
+  billingStartDate: Date | null,
   mealBookings: BillingMealBooking[],
+  leaves: BillingLeave[],
   mealPrices: BillingMealPrices,
   payments: LedgerPayment[],
   asOf: Date = new Date()
@@ -191,9 +241,15 @@ export function buildLedgerAndMonthlyClosing(
 
   const events: Omit<AccountLedgerEntry, "runningBalance">[] = [];
 
-  const effectiveBookings = mealBookings
-    .filter((booking) => startOfDay(booking.date).getTime() <= startOfDay(asOf).getTime())
-    .sort((a, b) => startOfDay(a.date).getTime() - startOfDay(b.date).getTime());
+  const leaveKeySet = buildLeaveKeySet(leaves);
+  const effectiveBookings = filterBillableBookings(
+    mealBookings,
+    leaveKeySet,
+    billingStartDate,
+    asOf
+  ).sort(
+    (a, b) => startOfDay(a.date).getTime() - startOfDay(b.date).getTime()
+  );
   for (let i = 0; i < effectiveBookings.length; i++) {
     const booking = effectiveBookings[i];
     const amount = getMealUnitPrice(booking.mealType, mealPrices);
@@ -202,7 +258,7 @@ export function buildLedgerAndMonthlyClosing(
       id: `booking-charge-${i}-${startOfDay(booking.date).toISOString()}-${booking.mealType}`,
       date: startOfDay(booking.date),
       type: "CHARGE",
-      description: `${mealLabel} booking charge`,
+      description: `${mealLabel} meal charge`,
       debit: amount,
       credit: 0,
     });

@@ -11,19 +11,23 @@ import { MealType } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
 
 type AccountData = {
-  user: { id: string; name: string; phone: string; email: string | null; address: string | null };
-  plan: {
-    monthlyFee: number;
-    startDate: string;
-    isActive: boolean;
-  } | null;
+  user: {
+    id: string;
+    name: string;
+    phone: string;
+    email: string | null;
+    address: string | null;
+    startDate: string | null;
+  };
   payments: { id: string; date: string; amount: number; note: string | null }[];
   cyclesCompleted: number;
+  billableMealCount: number;
   totalDue: number;
   totalPaid: number;
   balance: number;
   dueAmount: number;
   advanceAmount: number;
+  nextDueDate: string | null;
   locations: { id: string; label: string; address: string; mealType: string; isDefault: boolean }[];
 };
 
@@ -257,11 +261,15 @@ export default function AccountPage() {
         <h2 className="font-semibold mb-3">Payment & Account Summary</h2>
         <div className="grid grid-cols-2 gap-2 text-sm mb-3">
           <div className="rounded-lg bg-gray-50 p-2">
-            <p className="text-gray-500">Booked meals</p>
+            <p className="text-gray-500">30-day cycles</p>
             <p className="font-semibold">{data.cyclesCompleted}</p>
           </div>
           <div className="rounded-lg bg-gray-50 p-2">
-            <p className="text-gray-500">Total due</p>
+            <p className="text-gray-500">Billable meals</p>
+            <p className="font-semibold">{data.billableMealCount}</p>
+          </div>
+          <div className="rounded-lg bg-gray-50 p-2 col-span-2">
+            <p className="text-gray-500">Total due (meal prices)</p>
             <p className="font-semibold">{formatCurrency(data.totalDue)}</p>
           </div>
         </div>
@@ -290,16 +298,25 @@ export default function AccountPage() {
         )}
       </div>
 
-      {data.plan && (
-        <div className="bg-white rounded-card shadow-card p-4">
-          <h2 className="font-semibold mb-3">Plan Details</h2>
-          <p className="text-sm">Monthly fee: {formatCurrency(data.plan.monthlyFee)}</p>
-          <p className="text-sm text-gray-600">
-            Start date: {format(new Date(data.plan.startDate), "dd MMM yyyy")}
+      <div className="bg-white rounded-card shadow-card p-4">
+        <h2 className="font-semibold mb-3">Billing</h2>
+        <p className="text-sm text-gray-600">
+          Charges use meal prices set by the mess. Meals on leave are not charged. Billing runs from your start date;
+          payment is due every 30 days.
+        </p>
+        <p className="text-sm mt-2">
+          <span className="text-gray-500">Billing start: </span>
+          {data.user.startDate
+            ? format(new Date(data.user.startDate), "dd MMM yyyy")
+            : "—"}
+        </p>
+        {data.nextDueDate ? (
+          <p className="text-sm mt-1">
+            <span className="text-gray-500">Next due window: </span>
+            {format(new Date(data.nextDueDate), "dd MMM yyyy")}
           </p>
-          <p className="text-sm text-gray-600">Plan is not used for due calculation.</p>
-        </div>
-      )}
+        ) : null}
+      </div>
 
       <div className="bg-white rounded-card shadow-card p-4">
         <h2 className="font-semibold mb-3">Session</h2>

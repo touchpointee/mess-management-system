@@ -8,7 +8,8 @@ type DueCustomer = {
   id: string;
   name: string;
   phone: string;
-  bookedMeals: number;
+  cyclesCompleted: number;
+  billableMeals: number;
   totalDue: number;
   totalPaid: number;
   dueAmount: number;
@@ -155,7 +156,8 @@ export default function AdminPaymentsPage() {
                     id={c.id}
                     name={c.name}
                     phone={c.phone}
-                    bookedMeals={c.bookedMeals}
+                    cyclesCompleted={c.cyclesCompleted}
+                    billableMeals={c.billableMeals}
                     totalDue={c.totalDue}
                     totalPaid={c.totalPaid}
                     dueAmount={c.dueAmount}

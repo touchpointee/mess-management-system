@@ -7,7 +7,6 @@ type CustomerRow = {
   name: string;
   phone: string;
   email: string | null;
-  planFee: number | null;
   startDate: string | null;
   daysActive: number;
   balanceDue: number;
@@ -48,9 +47,8 @@ export function CustomerTable({
             <tr>
               <th className="px-4 py-3 text-left font-medium text-slate-700">Name</th>
               <th className="px-4 py-3 text-left font-medium text-slate-700">Phone</th>
-              <th className="px-4 py-3 text-left font-medium text-slate-700">Plan Fee</th>
-              <th className="px-4 py-3 text-left font-medium text-slate-700">Start Date</th>
-              <th className="px-4 py-3 text-left font-medium text-slate-700">Days Active</th>
+              <th className="px-4 py-3 text-left font-medium text-slate-700">Billing start</th>
+              <th className="px-4 py-3 text-left font-medium text-slate-700">Days active</th>
               <th className="px-4 py-3 text-left font-medium text-slate-700">Account Balance</th>
               <th className="px-4 py-3 text-left font-medium text-slate-700">Actions</th>
             </tr>
@@ -60,13 +58,10 @@ export function CustomerTable({
               <tr key={c.id} className="border-b border-slate-100 hover:bg-slate-50">
                 <td className="px-4 py-3">{c.name}</td>
                 <td className="px-4 py-3 text-slate-600">{c.phone}</td>
-                <td className="px-4 py-3">
-                  {c.planFee != null ? formatCurrency(c.planFee) : "-"}
-                </td>
                 <td className="px-4 py-3 text-slate-600">
                   {c.startDate ? format(new Date(c.startDate), "dd MMM yyyy") : "-"}
                 </td>
-                <td className="px-4 py-3">{c.daysActive}</td>
+                <td className="px-4 py-3">{c.startDate ? c.daysActive : "-"}</td>
                 <td className="px-4 py-3">
                   {c.dueAmount > 0 ? (
                     <span className="text-red-600 font-medium">
@@ -92,7 +87,7 @@ export function CustomerTable({
             ))}
             {filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="py-10 text-center text-slate-500">
+                <td colSpan={6} className="py-10 text-center text-slate-500">
                   No customers found for this search.
                 </td>
               </tr>
@@ -113,9 +108,11 @@ export function CustomerTable({
               </Link>
             </div>
             <div className="mt-3 space-y-1 text-sm text-slate-600">
-              <p>Plan Fee: {c.planFee != null ? formatCurrency(c.planFee) : "-"}</p>
-              <p>Start Date: {c.startDate ? format(new Date(c.startDate), "dd MMM yyyy") : "-"}</p>
-              <p>Days Active: {c.daysActive}</p>
+              <p>
+                Billing start:{" "}
+                {c.startDate ? format(new Date(c.startDate), "dd MMM yyyy") : "-"}
+              </p>
+              <p>Days active: {c.startDate ? c.daysActive : "-"}</p>
               <p>
                 Balance:{" "}
                 {c.dueAmount > 0

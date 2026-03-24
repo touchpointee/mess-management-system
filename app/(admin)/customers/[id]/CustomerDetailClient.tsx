@@ -45,7 +45,7 @@ type CustomerDetail = {
   phone: string;
   email: string | null;
   address: string | null;
-  plan: { id: string; monthlyFee: number; startDate: string; isActive: boolean } | null;
+  startDate: string | null;
   locations: { id: string; label: string; address: string; mealType: string }[];
   paymentHistory: PaymentRow[];
   ledger: LedgerRow[];
@@ -54,6 +54,7 @@ type CustomerDetail = {
   bookings: { id: string; date: string; mealType: string; deliveryLocationId: string; createdAt: string }[];
   historyMeta: { leaves: HistoryMeta; bookings: HistoryMeta };
   cyclesCompleted: number;
+  billableMealCount: number;
   totalDue: number;
   totalPaid: number;
   balance: number;
@@ -71,8 +72,7 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
   const [addPaymentAmount, setAddPaymentAmount] = useState("");
   const [addPaymentDate, setAddPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [addPaymentNote, setAddPaymentNote] = useState("");
-  const [editPlanFee, setEditPlanFee] = useState("");
-  const [editPlanStart, setEditPlanStart] = useState("");
+  const [editStartDate, setEditStartDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -88,10 +88,9 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
         setData(d);
         setLeavesPage(d.historyMeta?.leaves?.page ?? nextLeavesPage);
         setBookingsPage(d.historyMeta?.bookings?.page ?? nextBookingsPage);
-        if (d.plan) {
-          setEditPlanFee(String(d.plan.monthlyFee));
-          setEditPlanStart(format(new Date(d.plan.startDate), "yyyy-MM-dd"));
-        }
+        setEditStartDate(
+          d.startDate ? format(new Date(d.startDate), "yyyy-MM-dd") : ""
+        );
       })
       .catch((e) => setError(e instanceof Error ? e.message : "Failed to load customer"));
   };
@@ -134,10 +133,8 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
     }
   };
 
-  const onEditPlan = async (e: React.FormEvent) => {
+  const onSaveStartDate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const fee = parseFloat(editPlanFee);
-    if (isNaN(fee) || fee < 0) return;
     setSubmitting(true);
     setError(null);
     try {
@@ -145,17 +142,16 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          monthlyFee: fee,
-          startDate: editPlanStart,
+          startDate: editStartDate || null,
         }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.message ?? "Failed to update plan");
+        throw new Error(body?.message ?? "Failed to update billing start date");
       }
       refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to update plan");
+      setError(e instanceof Error ? e.message : "Failed to update billing start date");
     } finally {
       setSubmitting(false);
     }
@@ -176,40 +172,43 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
       ) : null}
       <div className="admin-card">
         <h2 className="font-semibold mb-2">Profile</h2>
-        <p><strong>Name:</strong> {data.name}</p>
-        <p><strong>Phone:</strong> {data.phone}</p>
-        {data.email && <p><strong>Email:</strong> {data.email}</p>}
-        {data.address && <p><strong>Address:</strong> {data.address}</p>}
+        <div className="space-y-1 text-sm sm:text-base">
+          <p className="break-words"><strong>Name:</strong> {data.name}</p>
+          <p className="break-words"><strong>Phone:</strong> {data.phone}</p>
+          {data.email && <p className="break-words"><strong>Email:</strong> {data.email}</p>}
+          {data.address && <p className="break-words"><strong>Address:</strong> {data.address}</p>}
+        </div>
       </div>
 
-      {data.plan && (
-        <div className="admin-card">
-          <h2 className="font-semibold mb-2">Plan</h2>
-          <p>Monthly fee: {formatCurrency(data.plan.monthlyFee)}</p>
-          <p>Start date: {format(new Date(data.plan.startDate), "dd MMM yyyy")}</p>
-          <p className="text-sm text-slate-500">Plan values are informational and not used for due calculation.</p>
-          <p>Booked meals charged: {data.cyclesCompleted}</p>
-          <form onSubmit={onEditPlan} className="mt-3 space-y-2 rounded-xl border border-slate-200 p-3">
-            <input
-              type="number"
-              step="0.01"
-              placeholder="Monthly fee"
-              value={editPlanFee}
-              onChange={(e) => setEditPlanFee(e.target.value)}
-              className="admin-input"
-            />
-            <input
-              type="date"
-              value={editPlanStart}
-              onChange={(e) => setEditPlanStart(e.target.value)}
-              className="admin-input"
-            />
-            <button type="submit" disabled={submitting} className="admin-btn-primary">
-              Update Plan
-            </button>
-          </form>
-        </div>
-      )}
+      <div className="admin-card">
+        <h2 className="font-semibold mb-2">Billing</h2>
+        <p className="text-sm text-slate-600">
+          Dues use meal prices from Settings. Charges apply from the billing start date; leaves exclude a meal from
+          billing. Payment is due every 30 days from the start date.
+        </p>
+        <p className="mt-2">
+          <strong>Billing start:</strong>{" "}
+          {data.startDate ? format(new Date(data.startDate), "dd MMM yyyy") : "Not set"}
+        </p>
+        <p>
+          <strong>30-day cycles completed:</strong> {data.cyclesCompleted}
+        </p>
+        <p>
+          <strong>Billable meals (booked − leave):</strong> {data.billableMealCount}
+        </p>
+        <form onSubmit={onSaveStartDate} className="mt-3 space-y-2 rounded-xl border border-slate-200 p-3">
+          <label className="admin-label">Billing start date</label>
+          <input
+            type="date"
+            value={editStartDate}
+            onChange={(e) => setEditStartDate(e.target.value)}
+            className="admin-input"
+          />
+          <button type="submit" disabled={submitting} className="admin-btn-primary">
+            Save start date
+          </button>
+        </form>
+      </div>
 
       <div className="admin-card">
         <h2 className="font-semibold mb-2">Delivery Locations</h2>
@@ -227,32 +226,32 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
       </div>
 
       <div className="admin-card">
-        <div className="mb-4 flex flex-wrap gap-2">
+        <div className="mb-4 grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
           <button
             type="button"
             onClick={() => setActiveTab("ledger")}
-            className={activeTab === "ledger" ? "admin-btn-primary" : "admin-btn-secondary"}
+            className={`w-full ${activeTab === "ledger" ? "admin-btn-primary" : "admin-btn-secondary"}`}
           >
             Account Ledger
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("monthly")}
-            className={activeTab === "monthly" ? "admin-btn-primary" : "admin-btn-secondary"}
+            className={`w-full ${activeTab === "monthly" ? "admin-btn-primary" : "admin-btn-secondary"}`}
           >
             Monthly Closing
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("leaves")}
-            className={activeTab === "leaves" ? "admin-btn-primary" : "admin-btn-secondary"}
+            className={`w-full ${activeTab === "leaves" ? "admin-btn-primary" : "admin-btn-secondary"}`}
           >
             Leave History
           </button>
           <button
             type="button"
             onClick={() => setActiveTab("bookings")}
-            className={activeTab === "bookings" ? "admin-btn-primary" : "admin-btn-secondary"}
+            className={`w-full ${activeTab === "bookings" ? "admin-btn-primary" : "admin-btn-secondary"}`}
           >
             Booking History
           </button>
@@ -260,7 +259,7 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
 
         {activeTab === "ledger" ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[720px] text-sm">
               <thead>
                 <tr className="text-left text-slate-600">
                   <th className="py-2">Date</th>
@@ -297,7 +296,7 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
 
         {activeTab === "monthly" ? (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-[620px] text-sm">
               <thead>
                 <tr className="text-left text-slate-600">
                   <th className="py-2">Month</th>
@@ -333,7 +332,7 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
         {activeTab === "leaves" ? (
           <div className="space-y-3">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[520px] text-sm">
                 <thead>
                   <tr className="text-left text-slate-600">
                     <th className="py-2">Date</th>
@@ -360,14 +359,14 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
                 </tbody>
               </table>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-slate-500">
                 Page {data.historyMeta.leaves.page} of {data.historyMeta.leaves.totalPages}
               </p>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex">
                 <button
                   type="button"
-                  className="admin-btn-secondary"
+                  className="admin-btn-secondary w-full sm:w-auto"
                   disabled={data.historyMeta.leaves.page <= 1}
                   onClick={() => fetchDetail(Math.max(1, leavesPage - 1), bookingsPage)}
                 >
@@ -375,7 +374,7 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
                 </button>
                 <button
                   type="button"
-                  className="admin-btn-secondary"
+                  className="admin-btn-secondary w-full sm:w-auto"
                   disabled={data.historyMeta.leaves.page >= data.historyMeta.leaves.totalPages}
                   onClick={() =>
                     fetchDetail(
@@ -394,7 +393,7 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
         {activeTab === "bookings" ? (
           <div className="space-y-3">
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[620px] text-sm">
                 <thead>
                   <tr className="text-left text-slate-600">
                     <th className="py-2">Date</th>
@@ -428,14 +427,14 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
                 </tbody>
               </table>
             </div>
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-slate-500">
                 Page {data.historyMeta.bookings.page} of {data.historyMeta.bookings.totalPages}
               </p>
-              <div className="flex gap-2">
+              <div className="grid grid-cols-2 gap-2 sm:flex">
                 <button
                   type="button"
-                  className="admin-btn-secondary"
+                  className="admin-btn-secondary w-full sm:w-auto"
                   disabled={data.historyMeta.bookings.page <= 1}
                   onClick={() => fetchDetail(leavesPage, Math.max(1, bookingsPage - 1))}
                 >
@@ -443,7 +442,7 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
                 </button>
                 <button
                   type="button"
-                  className="admin-btn-secondary"
+                  className="admin-btn-secondary w-full sm:w-auto"
                   disabled={data.historyMeta.bookings.page >= data.historyMeta.bookings.totalPages}
                   onClick={() =>
                     fetchDetail(

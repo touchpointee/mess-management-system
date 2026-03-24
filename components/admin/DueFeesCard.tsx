@@ -5,7 +5,8 @@ type DueFeesCardProps = {
   id: string;
   name: string;
   phone: string;
-  bookedMeals: number;
+  cyclesCompleted: number;
+  billableMeals: number;
   totalDue: number;
   totalPaid: number;
   dueAmount: number;
@@ -16,7 +17,8 @@ export function DueFeesCard({
   id,
   name,
   phone,
-  bookedMeals,
+  cyclesCompleted,
+  billableMeals,
   totalDue,
   totalPaid,
   dueAmount,
@@ -37,7 +39,9 @@ export function DueFeesCard({
         </Link>
       </div>
       <div className="mt-3 space-y-1 text-sm text-slate-600">
-        <p className="break-words">Booked meals: {bookedMeals}</p>
+        <p className="break-words">
+          30-day cycles: {cyclesCompleted} | Billable meals: {billableMeals}
+        </p>
         <p>Total Due: {formatCurrency(totalDue)}</p>
         <p className="text-emerald-600">Total Paid: {formatCurrency(totalPaid)}</p>
         <p className="font-bold text-red-600">Due: {formatCurrency(dueAmount)}</p>

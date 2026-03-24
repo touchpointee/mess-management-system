@@ -56,7 +56,6 @@ async function main() {
   await prisma.leave.deleteMany();
   await prisma.dayBooking.deleteMany();
   await prisma.deliveryLocation.deleteMany();
-  await prisma.plan.deleteMany();
   await prisma.user.deleteMany();
 
   const adminPassword = await hash("admin123", 12);
@@ -85,6 +84,7 @@ async function main() {
         address: "Sreekaryam, Thiruvananthapuram",
         lat: 8.5442,
         lng: 76.9067,
+        startDate: new Date("2025-01-01"),
       },
     }),
     prisma.user.create({
@@ -97,6 +97,7 @@ async function main() {
         address: "Pattom, Thiruvananthapuram",
         lat: 8.5241,
         lng: 76.9366,
+        startDate: new Date("2025-02-15"),
       },
     }),
     prisma.user.create({
@@ -109,6 +110,7 @@ async function main() {
         address: "Technopark, Thiruvananthapuram",
         lat: 8.5454,
         lng: 76.8754,
+        startDate: new Date("2025-03-01"),
       },
     }),
     prisma.user.create({
@@ -121,41 +123,7 @@ async function main() {
         address: "Kazhakkoottam, Thiruvananthapuram",
         lat: 8.562,
         lng: 76.878,
-      },
-    }),
-  ]);
-
-  const plans = await Promise.all([
-    prisma.plan.create({
-      data: {
-        userId: customers[0].id,
-        monthlyFee: 2500,
-        startDate: new Date("2025-01-01"),
-        isActive: true,
-      },
-    }),
-    prisma.plan.create({
-      data: {
-        userId: customers[1].id,
-        monthlyFee: 3000,
-        startDate: new Date("2025-02-15"),
-        isActive: true,
-      },
-    }),
-    prisma.plan.create({
-      data: {
-        userId: customers[2].id,
-        monthlyFee: 2000,
-        startDate: new Date("2025-03-01"),
-        isActive: true,
-      },
-    }),
-    prisma.plan.create({
-      data: {
-        userId: customers[3].id,
-        monthlyFee: 3500,
         startDate: new Date("2025-01-15"),
-        isActive: true,
       },
     }),
   ]);
@@ -190,7 +158,6 @@ async function main() {
 
   console.log("Seeded admin:", admin.email);
   console.log("Seeded customers:", customers.length);
-  console.log("Seeded plans:", plans.length);
 }
 
 function addDays(d: Date, days: number): Date {

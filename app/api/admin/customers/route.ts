@@ -13,7 +13,6 @@ export async function GET(req: Request) {
   const customers = await prisma.user.findMany({
     where: { role: Role.CUSTOMER },
     include: {
-      plan: true,
       payments: true,
       bookings: {
         select: { date: true, mealType: true },
@@ -29,15 +28,30 @@ export async function GET(req: Request) {
     lunchPrice: settings?.lunchPrice ?? 0,
     dinnerPrice: settings?.dinnerPrice ?? 0,
   };
+  const customerIds = customers.map((c) => c.id);
+  const allLeaves =
+    customerIds.length === 0
+      ? []
+      : await prisma.leave.findMany({
+          where: { userId: { in: customerIds } },
+          select: { userId: true, date: true, mealType: true },
+        });
+  const leavesByUser = new Map<string, { date: Date; mealType: string }[]>();
+  for (const row of allLeaves) {
+    const list = leavesByUser.get(row.userId) ?? [];
+    list.push({ date: row.date, mealType: row.mealType });
+    leavesByUser.set(row.userId, list);
+  }
   const today = new Date();
   const list = customers.map((c) => {
-    const plan = c.plan;
-    const startDate = plan?.startDate ? new Date(plan.startDate) : null;
+    const startDate = c.startDate ? new Date(c.startDate) : null;
     const billing = getBillingSummary(
+      startDate,
       c.bookings.map((booking) => ({
         date: booking.date,
         mealType: booking.mealType,
       })),
+      leavesByUser.get(c.id) ?? [],
       mealPrices,
       c.payments.map((payment) => payment.amount),
       today
@@ -48,8 +62,7 @@ export async function GET(req: Request) {
       name: c.name,
       phone: c.phone,
       email: c.email,
-      planFee: plan?.monthlyFee ?? null,
-      startDate: plan?.startDate ?? null,
+      startDate: c.startDate ?? null,
       daysActive,
       balanceDue: billing.netBalance,
       dueAmount: billing.dueAmount,
@@ -74,7 +87,6 @@ export async function POST(req: Request) {
       address,
       lat,
       lng,
-      monthlyFee,
       startDate,
     } = body as {
       name: string;
@@ -84,7 +96,6 @@ export async function POST(req: Request) {
       address?: string;
       lat?: number;
       lng?: number;
-      monthlyFee?: number;
       startDate?: string;
     };
     if (!name || !phone || !password) {
@@ -115,22 +126,9 @@ export async function POST(req: Request) {
         address: address?.trim() || null,
         lat: typeof lat === "number" ? lat : null,
         lng: typeof lng === "number" ? lng : null,
+        ...(startDate ? { startDate: new Date(startDate) } : {}),
       },
     });
-    if (
-      typeof monthlyFee === "number" &&
-      monthlyFee > 0 &&
-      startDate
-    ) {
-      await prisma.plan.create({
-        data: {
-          userId: user.id,
-          monthlyFee,
-          startDate: new Date(startDate),
-          isActive: true,
-        },
-      });
-    }
     return NextResponse.json({ success: true, id: user.id });
   } catch (e) {
     console.error(e);
