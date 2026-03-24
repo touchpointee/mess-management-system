@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 0 0% 3.9%;
+    --card: 0 0% 100%;
+    --card-foreground: 0 0% 3.9%;
+    --primary: 6 63% 46%;
+    --primary-foreground: 0 0% 98%;
+    --muted: 0 0% 96.1%;
+    --muted-foreground: 0 0% 45.1%;
+    --border: 0 0% 89.8%;
+    --input: 0 0% 89.8%;
+    --ring: 6 63% 46%;
+    --radius: 0.5rem;
+  }
+  .dark {
+    --background: 0 0% 3.9%;
+    --foreground: 0 0% 98%;
+    --card: 0 0% 3.9%;
+    --card-foreground: 0 0% 98%;
+    --primary: 6 63% 46%;
+    --primary-foreground: 0 0% 98%;
+    --muted: 0 0% 14.9%;
+    --muted-foreground: 0 0% 63.9%;
+    --border: 0 0% 14.9%;
+    --input: 0 0% 14.9%;
+    --ring: 6 63% 46%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+  }
+}
+
+@layer utilities {
+  .admin-shell {
+    @apply min-h-screen overflow-x-hidden bg-slate-50 text-slate-900;
+  }
+
+  .admin-page {
+    @apply mx-auto w-full max-w-7xl px-4 py-4 sm:px-6 sm:py-6;
+  }
+
+  .admin-page-header {
+    @apply mb-5 flex flex-col gap-3 border-b border-slate-200 pb-4 sm:mb-6 sm:flex-row sm:items-end sm:justify-between;
+  }
+
+  .admin-title {
+    @apply text-xl font-semibold tracking-tight text-slate-900 sm:text-2xl;
+  }
+
+  .admin-subtitle {
+    @apply mt-1 text-sm text-slate-500;
+  }
+
+  .admin-card {
+    @apply rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5;
+  }
+
+  .admin-input {
+    @apply w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition focus:border-primary focus:ring-2 focus:ring-primary/15;
+  }
+
+  .admin-label {
+    @apply mb-1.5 block text-sm font-medium text-slate-700;
+  }
+
+  .admin-btn {
+    @apply inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-medium transition focus:outline-none focus:ring-2 focus:ring-primary/25 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .admin-btn-primary {
+    @apply admin-btn bg-primary text-white hover:bg-primary/90;
+  }
+
+  .admin-btn-secondary {
+    @apply admin-btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-100;
+  }
+
+  .glass-effect {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+  
+  .gradient-primary {
+    background: linear-gradient(135deg, #C0392B 0%, #E74C3C 100%);
+  }
+  
+  .gradient-success {
+    background: linear-gradient(135deg, #27AE60 0%, #2ECC71 100%);
+  }
+  
+  .gradient-info {
+    background: linear-gradient(135deg, #3498DB 0%, #5DADE2 100%);
+  }
+  
+  .gradient-warning {
+    background: linear-gradient(135deg, #F39C12 0%, #F1C40F 100%);
+  }
+  
+  .shadow-soft {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+  }
+  
+  .shadow-card {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  }
+  
+  .text-gradient {
+    background: linear-gradient(135deg, #C0392B 0%, #E74C3C 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  
+  @keyframes slideUp {
+    from {
+      transform: translateY(20px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+}

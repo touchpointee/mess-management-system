@@ -1,0 +1,97 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  name      String
+  phone     String   @unique
+  email     String?  @unique
+  password  String
+  role      String   @default("CUSTOMER")
+  address   String?
+  lat       Float?
+  lng       Float?
+  createdAt DateTime @default(now())
+
+  plan        Plan?
+  payments    Payment[]
+  locations   DeliveryLocation[]
+  leaves      Leave[]
+  bookings   DayBooking[]
+}
+
+model SystemSettings {
+  id           String @id @default("default")
+  businessName String
+  shortName    String
+  phone        String
+  supportEmail String?
+  address      String
+  city         String
+  lat          Float
+  lng          Float
+  breakfastPrice Float @default(0)
+  lunchPrice     Float @default(0)
+  dinnerPrice    Float @default(0)
+  heroImageUrl String?
+}
+
+model Plan {
+  id         String   @id @default(cuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id])
+  monthlyFee Float
+  startDate  DateTime
+  isActive   Boolean  @default(true)
+}
+
+model Payment {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  amount    Float
+  date      DateTime
+  note      String?
+  createdAt DateTime @default(now())
+}
+
+model DeliveryLocation {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  label     String
+  address   String
+  lat       Float
+  lng       Float
+  mealType  String
+  isDefault Boolean @default(false)
+}
+
+model Leave {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  date      DateTime
+  mealType  String
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date, mealType])
+}
+
+model DayBooking {
+  id                 String   @id @default(cuid())
+  userId             String
+  user               User     @relation(fields: [userId], references: [id])
+  date               DateTime
+  mealType           String
+  deliveryLocationId String
+  createdAt          DateTime @default(now())
+
+  @@unique([userId, date, mealType])
+}
