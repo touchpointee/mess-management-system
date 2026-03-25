@@ -1,0 +1,27 @@
+# Dependencies & build output
+node_modules
+.next
+out
+dist
+build
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Git & tooling
+.git
+.gitignore
+.cursor
+.idea
+.vscode
+
+# TypeScript incremental file — Docker/Coolify may mount a cache at this path; must not exist as a file in the image
+tsconfig.tsbuildinfo
+*.tsbuildinfo
+
+# Logs & misc
+*.log
+coverage
+.DS_Store

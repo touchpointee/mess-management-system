@@ -30,3 +30,7 @@ prisma/dev.db-journal
 .cursor/
 .idea/
 .vscode/
+
+# TypeScript incremental cache (do not commit; breaks some Docker/Coolify cache mounts at this path)
+tsconfig.tsbuildinfo
+*.tsbuildinfo
