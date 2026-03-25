@@ -50,8 +50,8 @@ export function MealToggleRow({
       >
         <span
           className={cn(
-            "absolute top-1 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200",
-            active ? "left-6 translate-x-[-100%]" : "left-1"
+            "absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200",
+            active ? "translate-x-5" : "translate-x-0"
           )}
         />
       </button>

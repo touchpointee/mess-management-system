@@ -16,7 +16,7 @@ export function DateStrip({ selectedDate, onSelect }: DateStripProps) {
   const dates = Array.from({ length: DAYS }, (_, i) => addDays(today, i));
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-2 -mx-4 px-4 scrollbar-hide">
+    <div className="flex gap-2 overflow-x-auto py-2 -mx-4 px-4 scrollbar-hide">
       {dates.map((date) => {
         const isPast = isPastDate(date);
         const selected = isSameDay(date, selectedDate);

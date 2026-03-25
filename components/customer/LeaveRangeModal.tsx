@@ -77,7 +77,7 @@ export function LeaveRangeModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-[430px] mx-auto max-h-[90vh] overflow-auto shadow-xl p-6">
         <h3 className="font-semibold text-lg mb-4">Mark Leave</h3>

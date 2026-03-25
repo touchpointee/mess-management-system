@@ -30,7 +30,7 @@ export function LocationPicker({
   if (!open) return null;
   const filtered = locations.filter((l) => l.mealType === mealType);
   return (
-    <div className="fixed inset-0 z-50 flex items-end">
+    <div className="fixed inset-0 z-[60] flex items-end">
       <div className="absolute inset-0 bg-black/40" onClick={onClose} />
       <div className="relative bg-white rounded-t-2xl w-full max-w-[430px] mx-auto max-h-[70vh] overflow-auto shadow-xl">
         <div className="sticky top-0 bg-white border-b p-4 flex justify-between items-center">
