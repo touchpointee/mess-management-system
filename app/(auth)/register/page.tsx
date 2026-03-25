@@ -61,7 +61,7 @@ export default function RegisterPage() {
         setError("Account created but sign in failed. Please log in.");
         return;
       }
-      router.push("/");
+      router.push("/overview");
       router.refresh();
     } catch {
       setError("Something went wrong.");

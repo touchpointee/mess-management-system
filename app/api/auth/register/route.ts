@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
-import { prisma } from "@/lib/prisma";
+import { connectDB } from "@/lib/mongodb";
+import { User } from "@/lib/models";
 import { Role } from "@/lib/constants";
 
 export async function POST(req: Request) {
@@ -13,11 +14,13 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    const existing = await prisma.user.findFirst({
-      where: {
-        OR: [{ phone: phone.trim() }, ...(email ? [{ email: email.trim() }] : [])],
-      },
-    });
+    await connectDB();
+    const existing = await User.findOne({
+      $or: [
+        { phone: phone.trim() },
+        ...(email ? [{ email: email.trim() }] : []),
+      ],
+    }).lean();
     if (existing) {
       return NextResponse.json(
         { message: "Phone or email already registered." },
@@ -25,14 +28,12 @@ export async function POST(req: Request) {
       );
     }
     const hashed = await hash(password, 12);
-    await prisma.user.create({
-      data: {
-        name: name.trim(),
-        phone: phone.trim(),
-        email: email?.trim() || null,
-        password: hashed,
-        role: Role.CUSTOMER,
-      },
+    await User.create({
+      name: name.trim(),
+      phone: phone.trim(),
+      email: email?.trim() || null,
+      password: hashed,
+      role: Role.CUSTOMER,
     });
     return NextResponse.json({ success: true });
   } catch (e) {

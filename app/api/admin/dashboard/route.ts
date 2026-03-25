@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/getToken";
-import { prisma } from "@/lib/prisma";
+import { connectDB } from "@/lib/mongodb";
+import { User, Leave } from "@/lib/models";
+import { dayRangeFilter } from "@/lib/dayRange";
 import { addDays, format, startOfDay } from "date-fns";
 
 export async function GET(req: Request) {
@@ -8,30 +10,27 @@ export async function GET(req: Request) {
   if (token?.role !== "ADMIN") {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
+  await connectDB();
   const today = startOfDay(new Date());
   const tomorrow = addDays(today, 1);
 
   const [subscribedCustomers, leavesToday, leavesTomorrow, allCustomers] =
     await Promise.all([
-      prisma.user.findMany({
-        where: { role: "CUSTOMER", startDate: { not: null } },
-        select: { id: true },
-      }),
-      prisma.leave.findMany({
-        where: { date: today },
-        select: { userId: true, mealType: true },
-      }),
-      prisma.leave.findMany({
-        where: { date: tomorrow },
-        select: { userId: true, mealType: true },
-      }),
-      prisma.user.findMany({
-        where: { role: "CUSTOMER" },
-        select: { id: true, name: true, startDate: true },
-      }),
+      User.find({ role: "CUSTOMER", startDate: { $ne: null } })
+        .select({ _id: 1 })
+        .lean(),
+      Leave.find({ date: dayRangeFilter(today) })
+        .select({ userId: 1, mealType: 1 })
+        .lean(),
+      Leave.find({ date: dayRangeFilter(tomorrow) })
+        .select({ userId: 1, mealType: 1 })
+        .lean(),
+      User.find({ role: "CUSTOMER" })
+        .select({ _id: 1, name: 1, startDate: 1 })
+        .lean(),
     ]);
 
-  const activeUserIds = new Set(subscribedCustomers.map((u) => u.id));
+  const activeUserIds = new Set(subscribedCustomers.map((u) => u._id));
   const todayLeaveSet = new Set(leavesToday.map((l) => `${l.userId}:${l.mealType}`));
   const tomorrowLeaveSet = new Set(
     leavesTomorrow.map((l) => `${l.userId}:${l.mealType}`)
@@ -56,12 +55,12 @@ export async function GET(req: Request) {
   const leaveSummary = allCustomers
     .filter((c) => c.startDate)
     .map((c) => {
-      const b = todayLeaveSet.has(`${c.id}:BREAKFAST`);
-      const l = todayLeaveSet.has(`${c.id}:LUNCH`);
-      const d = todayLeaveSet.has(`${c.id}:DINNER`);
+      const b = todayLeaveSet.has(`${c._id}:BREAKFAST`);
+      const l = todayLeaveSet.has(`${c._id}:LUNCH`);
+      const d = todayLeaveSet.has(`${c._id}:DINNER`);
       if (!b && !l && !d) return null;
       return {
-        customerId: c.id,
+        customerId: c._id,
         name: c.name,
         B: b,
         L: l,

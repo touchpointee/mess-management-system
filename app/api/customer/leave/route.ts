@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/getToken";
-import { prisma } from "@/lib/prisma";
+import { connectDB } from "@/lib/mongodb";
+import { Leave } from "@/lib/models";
 import { canEditMeal } from "@/lib/utils";
 import { MealType } from "@/lib/constants";
 import { startOfDay } from "date-fns";
@@ -26,6 +27,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ message: "No valid meal types" }, { status: 400 });
     }
     let count = 0;
+    await connectDB();
     for (const dateStr of dates) {
       const date = startOfDay(new Date(dateStr));
       if (isNaN(date.getTime())) continue;
@@ -36,17 +38,11 @@ export async function POST(req: Request) {
         );
       }
       for (const meal of Array.from(mealSet)) {
-        await prisma.leave.upsert({
-          where: {
-            userId_date_mealType: {
-              userId,
-              date: date,
-              mealType: meal,
-            },
-          },
-          create: { userId, date, mealType: meal },
-          update: {},
-        });
+        await Leave.findOneAndUpdate(
+          { userId, date, mealType: meal },
+          { $setOnInsert: { userId, date, mealType: meal } },
+          { upsert: true, new: true, setDefaultsOnInsert: true }
+        );
         count++;
       }
     }
@@ -82,12 +78,11 @@ export async function DELETE(req: Request) {
         { status: 400 }
       );
     }
-    await prisma.leave.deleteMany({
-      where: {
-        userId,
-        date: d,
-        mealType: meal,
-      },
+    await connectDB();
+    await Leave.deleteMany({
+      userId,
+      date: d,
+      mealType: meal,
     });
     return NextResponse.json({ success: true });
   } catch (e) {

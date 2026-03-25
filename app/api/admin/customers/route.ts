@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/getToken";
 import { hash } from "bcryptjs";
-import { prisma } from "@/lib/prisma";
+import { connectDB } from "@/lib/mongodb";
+import { User, SystemSettings, Payment, DayBooking, Leave } from "@/lib/models";
 import { daysBetween, getBillingSummary } from "@/lib/utils";
 import { Role } from "@/lib/constants";
 
@@ -10,55 +11,67 @@ export async function GET(req: Request) {
   if (token?.role !== "ADMIN") {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
-  const customers = await prisma.user.findMany({
-    where: { role: Role.CUSTOMER },
-    include: {
-      payments: true,
-      bookings: {
-        select: { date: true, mealType: true },
-      },
-    },
-  });
-  const settings = await prisma.systemSettings.findUnique({
-    where: { id: "default" },
-    select: { breakfastPrice: true, lunchPrice: true, dinnerPrice: true },
-  });
-  const mealPrices = {
-    breakfastPrice: settings?.breakfastPrice ?? 0,
-    lunchPrice: settings?.lunchPrice ?? 0,
-    dinnerPrice: settings?.dinnerPrice ?? 0,
-  };
-  const customerIds = customers.map((c) => c.id);
-  const allLeaves =
-    customerIds.length === 0
-      ? []
-      : await prisma.leave.findMany({
-          where: { userId: { in: customerIds } },
-          select: { userId: true, date: true, mealType: true },
-        });
+  await connectDB();
+  const customers = await User.find({ role: Role.CUSTOMER }).lean();
+  const customerIds = customers.map((c) => c._id);
+  const [paymentsAll, bookingsAll, settings, allLeaves] = await Promise.all([
+    customerIds.length
+      ? Payment.find({ userId: { $in: customerIds } }).lean()
+      : Promise.resolve([]),
+    customerIds.length
+      ? DayBooking.find({ userId: { $in: customerIds } })
+          .select({ userId: 1, date: 1, mealType: 1 })
+          .lean()
+      : Promise.resolve([]),
+    SystemSettings.findById("default")
+      .select({ breakfastPrice: 1, lunchPrice: 1, dinnerPrice: 1 })
+      .lean(),
+    customerIds.length
+      ? Leave.find({ userId: { $in: customerIds } }).select({
+          userId: 1,
+          date: 1,
+          mealType: 1,
+        }).lean()
+      : Promise.resolve([]),
+  ]);
+  const paymentsByUser = new Map<string, { amount: number }[]>();
+  for (const p of paymentsAll) {
+    const list = paymentsByUser.get(p.userId) ?? [];
+    list.push({ amount: p.amount });
+    paymentsByUser.set(p.userId, list);
+  }
+  const bookingsByUser = new Map<string, { date: Date; mealType: string }[]>();
+  for (const b of bookingsAll) {
+    const list = bookingsByUser.get(b.userId) ?? [];
+    list.push({ date: b.date, mealType: b.mealType });
+    bookingsByUser.set(b.userId, list);
+  }
   const leavesByUser = new Map<string, { date: Date; mealType: string }[]>();
   for (const row of allLeaves) {
     const list = leavesByUser.get(row.userId) ?? [];
     list.push({ date: row.date, mealType: row.mealType });
     leavesByUser.set(row.userId, list);
   }
+  const mealPrices = {
+    breakfastPrice: settings?.breakfastPrice ?? 0,
+    lunchPrice: settings?.lunchPrice ?? 0,
+    dinnerPrice: settings?.dinnerPrice ?? 0,
+  };
   const today = new Date();
   const list = customers.map((c) => {
     const startDate = c.startDate ? new Date(c.startDate) : null;
+    const payList = paymentsByUser.get(c._id) ?? [];
     const billing = getBillingSummary(
       startDate,
-      c.bookings.map((booking) => ({
-        date: booking.date,
-        mealType: booking.mealType,
-      })),
-      leavesByUser.get(c.id) ?? [],
+      bookingsByUser.get(c._id) ?? [],
+      leavesByUser.get(c._id) ?? [],
       mealPrices,
-      c.payments.map((payment) => payment.amount),
+      payList.map((payment) => payment.amount),
       today
     );
     const daysActive = startDate ? daysBetween(startDate, today) : 0;
     return {
-      id: c.id,
+      id: c._id,
       name: c.name,
       phone: c.phone,
       email: c.email,
@@ -104,11 +117,10 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-    const existing = await prisma.user.findFirst({
-      where: {
-        OR: [{ phone }, ...(email ? [{ email }] : [])],
-      },
-    });
+    await connectDB();
+    const existing = await User.findOne({
+      $or: [{ phone }, ...(email ? [{ email }] : [])],
+    }).lean();
     if (existing) {
       return NextResponse.json(
         { message: "Phone or email already exists" },
@@ -116,20 +128,18 @@ export async function POST(req: Request) {
       );
     }
     const hashed = await hash(password, 12);
-    const user = await prisma.user.create({
-      data: {
-        name: name.trim(),
-        phone: phone.trim(),
-        email: email?.trim() || null,
-        password: hashed,
-        role: Role.CUSTOMER,
-        address: address?.trim() || null,
-        lat: typeof lat === "number" ? lat : null,
-        lng: typeof lng === "number" ? lng : null,
-        ...(startDate ? { startDate: new Date(startDate) } : {}),
-      },
+    const user = await User.create({
+      name: name.trim(),
+      phone: phone.trim(),
+      email: email?.trim() || null,
+      password: hashed,
+      role: Role.CUSTOMER,
+      address: address?.trim() || null,
+      lat: typeof lat === "number" ? lat : null,
+      lng: typeof lng === "number" ? lng : null,
+      ...(startDate ? { startDate: new Date(startDate) } : {}),
     });
-    return NextResponse.json({ success: true, id: user.id });
+    return NextResponse.json({ success: true, id: user._id });
   } catch (e) {
     console.error(e);
     return NextResponse.json({ message: "Server error" }, { status: 500 });

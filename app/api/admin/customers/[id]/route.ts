@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/getToken";
-import { prisma } from "@/lib/prisma";
+import { connectDB } from "@/lib/mongodb";
+import { User, Leave, DayBooking, DeliveryLocation, Payment, SystemSettings } from "@/lib/models";
 import { buildLedgerAndMonthlyClosing, getBillingSummary } from "@/lib/utils";
 
 export async function GET(
@@ -23,43 +24,34 @@ export async function GET(
     Math.max(10, Number(searchParams.get("bookingsLimit") ?? 50))
   );
   const { id } = await params;
-  const user = await prisma.user.findFirst({
-    where: { id, role: "CUSTOMER" },
-    include: {
-      payments: { orderBy: { date: "asc" } },
-      locations: true,
-      leaves: {
-        skip: (leavesPage - 1) * leavesLimit,
-        take: leavesLimit,
-        orderBy: { date: "desc" },
-      },
-      bookings: {
-        skip: (bookingsPage - 1) * bookingsLimit,
-        take: bookingsLimit,
-        orderBy: { date: "desc" },
-      },
-    },
-  });
+  await connectDB();
+  const user = await User.findOne({ _id: id, role: "CUSTOMER" }).lean();
   if (!user) {
     return NextResponse.json({ message: "Customer not found" }, { status: 404 });
   }
-  const [leavesCount, bookingsCount, allLeaves, allBookings] = await Promise.all([
-    prisma.leave.count({ where: { userId: id } }),
-    prisma.dayBooking.count({ where: { userId: id } }),
-    prisma.leave.findMany({
-      where: { userId: id },
-      select: { date: true, mealType: true },
-    }),
-    prisma.dayBooking.findMany({
-      where: { userId: id },
-      select: { date: true, mealType: true },
-    }),
-  ]);
+  const [payments, locations, leavesPageRows, bookingsPageRows, leavesCount, bookingsCount, allLeaves, allBookings] =
+    await Promise.all([
+      Payment.find({ userId: id }).sort({ date: 1 }).lean(),
+      DeliveryLocation.find({ userId: id }).lean(),
+      Leave.find({ userId: id })
+        .sort({ date: -1 })
+        .skip((leavesPage - 1) * leavesLimit)
+        .limit(leavesLimit)
+        .lean(),
+      DayBooking.find({ userId: id })
+        .sort({ date: -1 })
+        .skip((bookingsPage - 1) * bookingsLimit)
+        .limit(bookingsLimit)
+        .lean(),
+      Leave.countDocuments({ userId: id }),
+      DayBooking.countDocuments({ userId: id }),
+      Leave.find({ userId: id }).select({ date: 1, mealType: 1 }).lean(),
+      DayBooking.find({ userId: id }).select({ date: 1, mealType: 1 }).lean(),
+    ]);
   const today = new Date();
-  const settings = await prisma.systemSettings.findUnique({
-    where: { id: "default" },
-    select: { breakfastPrice: true, lunchPrice: true, dinnerPrice: true },
-  });
+  const settings = await SystemSettings.findById("default")
+    .select({ breakfastPrice: 1, lunchPrice: 1, dinnerPrice: 1 })
+    .lean();
   const mealPrices = {
     breakfastPrice: settings?.breakfastPrice ?? 0,
     lunchPrice: settings?.lunchPrice ?? 0,
@@ -74,7 +66,7 @@ export async function GET(
     })),
     allLeaves.map((l) => ({ date: l.date, mealType: l.mealType })),
     mealPrices,
-    user.payments.map((payment) => payment.amount),
+    payments.map((payment) => payment.amount),
     today
   );
   const { ledger, monthlyClosing } = buildLedgerAndMonthlyClosing(
@@ -85,8 +77,8 @@ export async function GET(
     })),
     allLeaves.map((l) => ({ date: l.date, mealType: l.mealType })),
     mealPrices,
-    user.payments.map((payment) => ({
-      id: payment.id,
+    payments.map((payment) => ({
+      id: payment._id,
       amount: payment.amount,
       date: payment.date,
       note: payment.note,
@@ -96,18 +88,52 @@ export async function GET(
   const paymentRunningById = new Map(
     ledger.filter((l) => l.type === "PAYMENT").map((l) => [l.id, l.runningBalance])
   );
-  const paymentHistory = user.payments.map((p) => {
+  const paymentHistory = payments.map((p) => {
     return {
-      id: p.id,
+      id: p._id,
       date: p.date,
       amount: p.amount,
       note: p.note,
-      runningBalance: paymentRunningById.get(p.id) ?? 0,
+      runningBalance: paymentRunningById.get(p._id) ?? 0,
     };
   });
+  const { password: _pw, _id: _uid, ...userRest } = user;
   return NextResponse.json({
-    ...user,
-    password: undefined,
+    ...userRest,
+    id: user._id,
+    payments: payments.map((p) => ({
+      id: p._id,
+      userId: p.userId,
+      amount: p.amount,
+      date: p.date,
+      note: p.note,
+      createdAt: p.createdAt,
+    })),
+    locations: locations.map((l) => ({
+      id: l._id,
+      userId: l.userId,
+      label: l.label,
+      address: l.address,
+      lat: l.lat,
+      lng: l.lng,
+      mealType: l.mealType,
+      isDefault: l.isDefault,
+    })),
+    leaves: leavesPageRows.map((l) => ({
+      id: l._id,
+      userId: l.userId,
+      date: l.date,
+      mealType: l.mealType,
+      createdAt: l.createdAt,
+    })),
+    bookings: bookingsPageRows.map((b) => ({
+      id: b._id,
+      userId: b.userId,
+      date: b.date,
+      mealType: b.mealType,
+      deliveryLocationId: b.deliveryLocationId,
+      createdAt: b.createdAt,
+    })),
     paymentHistory,
     ledger,
     monthlyClosing,
@@ -144,58 +170,35 @@ export async function PATCH(
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
   const { id } = await params;
-  const user = await prisma.user.findFirst({
-    where: { id, role: "CUSTOMER" },
-  });
+  await connectDB();
+  const user = await User.findOne({ _id: id, role: "CUSTOMER" }).lean();
   if (!user) {
     return NextResponse.json({ message: "Customer not found" }, { status: 404 });
   }
   try {
     const body = await req.json();
     const { name, phone, email, address, lat, lng, startDate } = body;
-    if (name !== undefined) {
-      await prisma.user.update({
-        where: { id },
-        data: { name: String(name).trim() },
-      });
-    }
-    if (phone !== undefined) {
-      await prisma.user.update({
-        where: { id },
-        data: { phone: String(phone).trim() },
-      });
-    }
+    const update: Record<string, unknown> = {};
+    if (name !== undefined) update.name = String(name).trim();
+    if (phone !== undefined) update.phone = String(phone).trim();
     if (email !== undefined) {
-      await prisma.user.update({
-        where: { id },
-        data: { email: email === "" ? null : String(email).trim() },
-      });
+      update.email = email === "" ? null : String(email).trim();
     }
     if (address !== undefined) {
-      await prisma.user.update({
-        where: { id },
-        data: { address: address === "" ? null : String(address).trim() },
-      });
+      update.address = address === "" ? null : String(address).trim();
     }
     if (lat !== undefined) {
-      await prisma.user.update({
-        where: { id },
-        data: { lat: typeof lat === "number" ? lat : null },
-      });
+      update.lat = typeof lat === "number" ? lat : null;
     }
     if (lng !== undefined) {
-      await prisma.user.update({
-        where: { id },
-        data: { lng: typeof lng === "number" ? lng : null },
-      });
+      update.lng = typeof lng === "number" ? lng : null;
     }
     if (startDate !== undefined) {
-      await prisma.user.update({
-        where: { id },
-        data: {
-          startDate: startDate === "" || startDate === null ? null : new Date(startDate),
-        },
-      });
+      update.startDate =
+        startDate === "" || startDate === null ? null : new Date(startDate);
+    }
+    if (Object.keys(update).length > 0) {
+      await User.updateOne({ _id: id }, { $set: update });
     }
     return NextResponse.json({ success: true });
   } catch (e) {

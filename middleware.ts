@@ -20,7 +20,14 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  const customerProtected = ["/", "/my-mess", "/overview", "/account"];
+  if (path === "/") {
+    if (!token) {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+    return NextResponse.redirect(new URL("/overview", req.url));
+  }
+
+  const customerProtected = ["/my-mess", "/overview", "/account"];
   if (customerProtected.includes(path) && !token) {
     return NextResponse.redirect(new URL("/login", req.url));
   }

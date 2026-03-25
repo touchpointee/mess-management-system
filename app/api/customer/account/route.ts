@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/getToken";
-import { prisma } from "@/lib/prisma";
+import { connectDB } from "@/lib/mongodb";
+import { User, Payment, DeliveryLocation, DayBooking, Leave, SystemSettings } from "@/lib/models";
 import { getBillingSummary, getNextDueDate } from "@/lib/utils";
 
 export async function GET(req: Request) {
@@ -9,23 +10,21 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
   }
   const userId = token.sub;
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    include: {
-      payments: { orderBy: { date: "desc" } },
-      locations: true,
-      bookings: { select: { date: true, mealType: true } },
-      leaves: { select: { date: true, mealType: true } },
-    },
-  });
+  await connectDB();
+  const user = await User.findById(userId).lean();
   if (!user) {
     return NextResponse.json({ message: "User not found; session may be stale. Please log out and log in again." }, { status: 401 });
   }
+  const [payments, locations, bookings, leaves] = await Promise.all([
+    Payment.find({ userId }).sort({ date: -1 }).lean(),
+    DeliveryLocation.find({ userId }).lean(),
+    DayBooking.find({ userId }).select({ date: 1, mealType: 1 }).lean(),
+    Leave.find({ userId }).select({ date: 1, mealType: 1 }).lean(),
+  ]);
   const today = new Date();
-  const settings = await prisma.systemSettings.findUnique({
-    where: { id: "default" },
-    select: { breakfastPrice: true, lunchPrice: true, dinnerPrice: true },
-  });
+  const settings = await SystemSettings.findById("default")
+    .select({ breakfastPrice: 1, lunchPrice: 1, dinnerPrice: 1 })
+    .lean();
   const mealPrices = {
     breakfastPrice: settings?.breakfastPrice ?? 0,
     lunchPrice: settings?.lunchPrice ?? 0,
@@ -34,13 +33,13 @@ export async function GET(req: Request) {
   const billingStart = user.startDate ? new Date(user.startDate) : null;
   const billing = getBillingSummary(
     billingStart,
-    user.bookings.map((booking) => ({
+    bookings.map((booking) => ({
       date: booking.date,
       mealType: booking.mealType,
     })),
-    user.leaves.map((l) => ({ date: l.date, mealType: l.mealType })),
+    leaves.map((l) => ({ date: l.date, mealType: l.mealType })),
     mealPrices,
-    user.payments.map((payment) => payment.amount),
+    payments.map((payment) => payment.amount),
     today
   );
   const nextDue =
@@ -50,15 +49,15 @@ export async function GET(req: Request) {
 
   return NextResponse.json({
     user: {
-      id: user.id,
+      id: user._id,
       name: user.name,
       phone: user.phone,
       email: user.email,
       address: user.address,
       startDate: user.startDate,
     },
-    payments: user.payments.map((p) => ({
-      id: p.id,
+    payments: payments.map((p) => ({
+      id: p._id,
       date: p.date,
       amount: p.amount,
       note: p.note,
@@ -71,6 +70,15 @@ export async function GET(req: Request) {
     dueAmount: billing.dueAmount,
     advanceAmount: billing.advanceAmount,
     nextDueDate: nextDue,
-    locations: user.locations,
+    locations: locations.map((l) => ({
+      id: l._id,
+      userId: l.userId,
+      label: l.label,
+      address: l.address,
+      lat: l.lat,
+      lng: l.lng,
+      mealType: l.mealType,
+      isDefault: l.isDefault,
+    })),
   });
 }

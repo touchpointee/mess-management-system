@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/getToken";
-import { prisma } from "@/lib/prisma";
+import { connectDB } from "@/lib/mongodb";
+import { User, Leave, DayBooking, DeliveryLocation } from "@/lib/models";
 import { nearestNeighborTSP, routeDistances } from "@/lib/delivery";
 import { getSystemSettings } from "@/lib/system";
 import { startOfDay } from "date-fns";
 import { MealType } from "@/lib/constants";
+import { dayRangeFilter } from "@/lib/dayRange";
 
 export async function GET(req: Request) {
   const token = await getAuthToken(req);
@@ -28,43 +30,59 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: "Invalid date" }, { status: 400 });
   }
 
-  const [settings, subscribedUsers, leaves, bookings] = await Promise.all([
-    getSystemSettings(),
-    prisma.user.findMany({
-      where: { role: "CUSTOMER", startDate: { not: null } },
-      include: { locations: true },
-    }),
-    prisma.leave.findMany({
-      where: { date, mealType: meal },
-      select: { userId: true },
-    }),
-    prisma.dayBooking.findMany({
-      where: { date, mealType: meal },
-      select: { userId: true, deliveryLocationId: true },
-    }),
+  await connectDB();
+  const subscribedUsers = await User.find({
+    role: "CUSTOMER",
+    startDate: { $ne: null },
+  }).lean();
+  const userIds = subscribedUsers.map((u) => u._id);
+  const [locationsByUser, leaves, bookings] = await Promise.all([
+    DeliveryLocation.find({ userId: { $in: userIds } }).lean(),
+    Leave.find({
+      date: dayRangeFilter(date),
+      mealType: meal,
+    })
+      .select({ userId: 1 })
+      .lean(),
+    DayBooking.find({
+      date: dayRangeFilter(date),
+      mealType: meal,
+    })
+      .select({ userId: 1, deliveryLocationId: 1 })
+      .lean(),
   ]);
+
+  const locMap = new Map<string, (typeof locationsByUser)[0][]>();
+  for (const loc of locationsByUser) {
+    const list = locMap.get(loc.userId) ?? [];
+    list.push(loc);
+    locMap.set(loc.userId, list);
+  }
+
   const leaveUserIds = new Set(leaves.map((l) => l.userId));
   const bookingMap = new Map(bookings.map((booking) => [booking.userId, booking.deliveryLocationId]));
 
   const stops: { lat: number; lng: number; userId: string; name: string; address: string }[] = [];
   for (const u of subscribedUsers) {
-    if (leaveUserIds.has(u.id)) continue;
-    const bookedLocationId = bookingMap.get(u.id);
+    if (leaveUserIds.has(u._id)) continue;
+    const bookedLocationId = bookingMap.get(u._id);
+    const uLocations = locMap.get(u._id) ?? [];
     const location =
-      u.locations.find((l) => l.id === bookedLocationId) ??
-      u.locations.find((l) => l.mealType === meal && l.isDefault) ??
-      u.locations.find((l) => l.mealType === meal);
+      uLocations.find((l) => l._id === bookedLocationId) ??
+      uLocations.find((l) => l.mealType === meal && l.isDefault) ??
+      uLocations.find((l) => l.mealType === meal);
     if (location) {
       stops.push({
         lat: location.lat,
         lng: location.lng,
-        userId: u.id,
+        userId: u._id,
         name: u.name,
         address: location.address,
       });
     }
   }
 
+  const settings = await getSystemSettings();
   const start = { lat: settings.lat, lng: settings.lng };
   const ordered = nearestNeighborTSP(start, stops);
   const { legKm, totalKm } = routeDistances(

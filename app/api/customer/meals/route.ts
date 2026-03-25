@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/getToken";
-import { prisma } from "@/lib/prisma";
+import { connectDB } from "@/lib/mongodb";
+import { User, Leave, DeliveryLocation, DayBooking } from "@/lib/models";
 import { startOfDay } from "date-fns";
 import { MealType } from "@/lib/constants";
+import { dayRangeFilter } from "@/lib/dayRange";
 
 export async function GET(req: Request) {
   const token = await getAuthToken(req);
@@ -20,23 +22,14 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: "Invalid date" }, { status: 400 });
   }
 
+  await connectDB();
   const [user, leaves, locations, bookings] = await Promise.all([
-    prisma.user.findUnique({
-      where: { id: userId },
-      select: { startDate: true },
-    }),
-    prisma.leave.findMany({
-      where: { userId, date },
-      select: { mealType: true },
-    }),
-    prisma.deliveryLocation.findMany({
-      where: { userId },
-      orderBy: { isDefault: "desc" },
-    }),
-    prisma.dayBooking.findMany({
-      where: { userId, date },
-      select: { mealType: true, deliveryLocationId: true },
-    }),
+    User.findById(userId).select({ startDate: 1 }).lean(),
+    Leave.find({ userId, date: dayRangeFilter(date) }).select({ mealType: 1 }).lean(),
+    DeliveryLocation.find({ userId }).sort({ isDefault: -1 }).lean(),
+    DayBooking.find({ userId, date: dayRangeFilter(date) })
+      .select({ mealType: 1, deliveryLocationId: 1 })
+      .lean(),
   ]);
 
   const billingStart = user?.startDate ? startOfDay(new Date(user.startDate)) : null;
@@ -51,14 +44,14 @@ export async function GET(req: Request) {
   const getLocation = (mealType: string) => {
     const bookId = bookingMap.get(mealType);
     if (bookId) {
-      const loc = locations.find((l) => l.id === bookId);
-      return loc ? { id: loc.id, label: loc.label, address: loc.address } : null;
+      const loc = locations.find((l) => l._id === bookId);
+      return loc ? { id: loc._id, label: loc.label, address: loc.address } : null;
     }
     const defaultLoc =
       locations.find((l) => l.mealType === mealType && l.isDefault) ??
       locations.find((l) => l.mealType === mealType);
     return defaultLoc
-      ? { id: defaultLoc.id, label: defaultLoc.label, address: defaultLoc.address }
+      ? { id: defaultLoc._id, label: defaultLoc.label, address: defaultLoc.address }
       : null;
   };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { signIn, signOut, useSession } from "next-auth/react";
 import { useForm } from "react-hook-form";
@@ -14,7 +14,7 @@ const schema = z.object({
 
 type FormData = z.infer<typeof schema>;
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
@@ -32,7 +32,7 @@ export default function LoginPage() {
     }
     if (callbackUrl) {
       if (callbackUrl.startsWith("/admin") && role !== "ADMIN") {
-        router.replace("/");
+        router.replace("/overview");
       } else {
         router.replace(callbackUrl);
       }
@@ -41,7 +41,7 @@ export default function LoginPage() {
     if (role === "ADMIN") {
       router.replace("/admin/dashboard");
     } else {
-      router.replace("/");
+      router.replace("/overview");
     }
   }, [session, status, router, callbackUrl, adminOnly]);
 
@@ -131,5 +131,19 @@ export default function LoginPage() {
         ) : null}
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#F5F5F5] p-4">
+          <div className="text-gray-500 text-sm">Loading…</div>
+        </div>
+      }
+    >
+      <LoginPageInner />
+    </Suspense>
   );
 }

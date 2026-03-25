@@ -1,4 +1,5 @@
-import { prisma } from "@/lib/prisma";
+import { connectDB } from "@/lib/mongodb";
+import { SystemSettings } from "@/lib/models";
 
 export type SystemSettingsData = {
   businessName: string;
@@ -32,9 +33,8 @@ const DEFAULT_SETTINGS: SystemSettingsData = {
 
 export async function getSystemSettings(): Promise<SystemSettingsData> {
   try {
-    const settings = await prisma.systemSettings.findUnique({
-      where: { id: "default" },
-    });
+    await connectDB();
+    const settings = await SystemSettings.findById("default").lean();
     if (!settings) {
       return DEFAULT_SETTINGS;
     }

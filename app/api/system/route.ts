@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSystemSettings } from "@/lib/system";
 import { getAuthToken } from "@/lib/getToken";
-import { prisma } from "@/lib/prisma";
+import { connectDB } from "@/lib/mongodb";
+import { SystemSettings } from "@/lib/models";
 
 export async function GET() {
   const settings = await getSystemSettings();
@@ -69,34 +70,30 @@ export async function PUT(req: Request) {
     }
 
     const current = await getSystemSettings();
-    await prisma.systemSettings.upsert({
-      where: { id: "default" },
-      update: {
-        businessName,
-        address,
-        city,
-        lat,
-        lng,
-        breakfastPrice,
-        lunchPrice,
-        dinnerPrice,
+    await connectDB();
+    await SystemSettings.findOneAndUpdate(
+      { _id: "default" },
+      {
+        $set: {
+          businessName,
+          address,
+          city,
+          lat,
+          lng,
+          breakfastPrice,
+          lunchPrice,
+          dinnerPrice,
+        },
+        $setOnInsert: {
+          _id: "default",
+          shortName: current.shortName,
+          phone: current.phone,
+          supportEmail: current.supportEmail,
+          heroImageUrl: current.heroImageUrl,
+        },
       },
-      create: {
-        id: "default",
-        businessName,
-        shortName: current.shortName,
-        phone: current.phone,
-        supportEmail: current.supportEmail,
-        address,
-        city,
-        heroImageUrl: current.heroImageUrl,
-        lat,
-        lng,
-        breakfastPrice,
-        lunchPrice,
-        dinnerPrice,
-      },
-    });
+      { upsert: true }
+    );
     return NextResponse.json({
       success: true,
       businessName,
