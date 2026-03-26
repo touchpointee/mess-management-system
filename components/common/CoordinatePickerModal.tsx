@@ -1,9 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
-import type { LatLngExpression } from "leaflet";
-import L from "leaflet";
-import { MapContainer, Marker, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
 export type Coordinates = { lat: number; lng: number };
 
@@ -33,23 +30,6 @@ function isValidCoordinate(lat: number, lng: number) {
   );
 }
 
-function ClickToSelect({ onPick }: { onPick: (coords: Coordinates) => void }) {
-  useMapEvents({
-    click(e) {
-      onPick({ lat: e.latlng.lat, lng: e.latlng.lng });
-    },
-  });
-  return null;
-}
-
-function MapViewportUpdater({ center }: { center: Coordinates }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView([center.lat, center.lng], map.getZoom(), { animate: true });
-  }, [center.lat, center.lng, map]);
-  return null;
-}
-
 export function CoordinatePickerModal({
   open,
   title = "Select location",
@@ -69,6 +49,7 @@ export function CoordinatePickerModal({
   const [searchText, setSearchText] = useState("");
   const [searching, setSearching] = useState(false);
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const mapRef = useRef<HTMLDivElement>(null);
 
   const locateCurrentPosition = () => {
     if (!navigator.geolocation) {
@@ -134,20 +115,56 @@ export function CoordinatePickerModal({
     }
   };
 
-  const markerIcon = useMemo(
-    () =>
-      L.divIcon({
-        className: "coordinate-picker-marker",
-        html: "<div style='background:#C0392B;width:28px;height:28px;border-radius:9999px;border:3px solid white;box-shadow:0 6px 18px rgba(0,0,0,0.25);'></div>",
-        iconSize: [28, 28],
-        iconAnchor: [14, 14],
-      }),
-    []
-  );
+  useEffect(() => {
+    if (!open || !mapRef.current || typeof window === "undefined") return;
+    const L = require("leaflet");
+    const map = L.map(mapRef.current).setView([center.lat, center.lng], 13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap",
+    }).addTo(map);
+
+    const markerIcon = L.divIcon({
+      className: "coordinate-picker-marker",
+      html: "<div style='background:#C0392B;width:28px;height:28px;border-radius:9999px;border:3px solid white;box-shadow:0 6px 18px rgba(0,0,0,0.25);'></div>",
+      iconSize: [28, 28],
+      iconAnchor: [14, 14],
+    });
+
+    let marker: any = null;
+    const putMarker = (coords: Coordinates) => {
+      if (!marker) {
+        marker = L.marker([coords.lat, coords.lng], {
+          icon: markerIcon,
+          draggable: true,
+        }).addTo(map);
+        marker.on("dragend", () => {
+          const ll = marker.getLatLng();
+          setPicked({ lat: ll.lat, lng: ll.lng });
+        });
+      } else {
+        marker.setLatLng([coords.lat, coords.lng]);
+      }
+      map.panTo([coords.lat, coords.lng], { animate: true });
+    };
+
+    if (selected) {
+      putMarker(selected);
+    }
+
+    const onMapClick = (event: any) => {
+      const coords = { lat: event.latlng.lat, lng: event.latlng.lng };
+      setPicked(coords);
+      putMarker(coords);
+    };
+    map.on("click", onMapClick);
+
+    return () => {
+      map.off("click", onMapClick);
+      map.remove();
+    };
+  }, [open, center.lat, center.lng]);
 
   if (!open) return null;
-
-  const mapCenter: LatLngExpression = [center.lat, center.lng];
   const selected = picked ?? initialValid;
   const canConfirm = !!selected && isValidCoordinate(selected.lat, selected.lng);
 
@@ -225,39 +242,7 @@ export function CoordinatePickerModal({
         </div>
 
         <div className="h-[360px] w-full bg-slate-100">
-          <MapContainer
-            center={mapCenter}
-            zoom={13}
-            scrollWheelZoom
-            style={{ height: "100%", width: "100%" }}
-          >
-            <TileLayer
-              attribution="© OpenStreetMap"
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-            />
-            <MapViewportUpdater center={center} />
-            <ClickToSelect
-              onPick={(coords) => {
-                setPicked(coords);
-                setCenter(coords);
-              }}
-            />
-            {selected ? (
-              <Marker
-                position={[selected.lat, selected.lng]}
-                icon={markerIcon}
-                draggable
-                eventHandlers={{
-                  dragend: (e) => {
-                    const marker = e.target as L.Marker;
-                    const ll = marker.getLatLng();
-                    setPicked({ lat: ll.lat, lng: ll.lng });
-                    setCenter({ lat: ll.lat, lng: ll.lng });
-                  },
-                }}
-              />
-            ) : null}
-          </MapContainer>
+          <div ref={mapRef} className="h-full w-full" />
         </div>
 
         <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
