@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useForm, type Resolver } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { CoordinatePickerModal } from "@/components/common/CoordinatePickerModal";
 
 const schema = z.object({
   name: z.string().min(1, "Name required"),
@@ -30,7 +31,8 @@ export function AddCustomerModal({
   onAdded,
 }: AddCustomerModalProps) {
   const [error, setError] = useState<string | null>(null);
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<FormData>({
+  const [mapOpen, setMapOpen] = useState(false);
+  const { register, handleSubmit, formState: { errors }, reset, setValue, watch } = useForm<FormData>({
     resolver: zodResolver(schema) as Resolver<FormData>,
     defaultValues: {
       name: "",
@@ -41,6 +43,8 @@ export function AddCustomerModal({
       startDate: "",
     },
   });
+  const selectedLat = watch("lat");
+  const selectedLng = watch("lng");
 
   const onSubmit = async (data: FormData) => {
     setError(null);
@@ -97,14 +101,30 @@ export function AddCustomerModal({
             <label className="admin-label">Address (optional)</label>
             <input {...register("address")} className="admin-input" />
           </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-            <div>
-              <label className="admin-label">Lat</label>
-              <input {...register("lat", { valueAsNumber: true })} type="number" step="any" className="admin-input" />
-            </div>
-            <div>
-              <label className="admin-label">Lng</label>
-              <input {...register("lng", { valueAsNumber: true })} type="number" step="any" className="admin-input" />
+          <div>
+            <label className="admin-label">Customer location (optional)</label>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => setMapOpen(true)}
+                className="admin-btn-secondary w-full"
+              >
+                {typeof selectedLat === "number" && typeof selectedLng === "number"
+                  ? "Change location on map"
+                  : "Select location on map"}
+              </button>
+              <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                <span className="text-slate-500">Selected:</span>{" "}
+                {typeof selectedLat === "number" && typeof selectedLng === "number" ? (
+                  <span className="font-medium">
+                    {selectedLat.toFixed(6)}, {selectedLng.toFixed(6)}
+                  </span>
+                ) : (
+                  <span className="text-slate-400">—</span>
+                )}
+              </div>
+              <input type="hidden" {...register("lat", { valueAsNumber: true })} />
+              <input type="hidden" {...register("lng", { valueAsNumber: true })} />
             </div>
           </div>
           <div>
@@ -125,6 +145,21 @@ export function AddCustomerModal({
           </div>
         </form>
       </div>
+
+      <CoordinatePickerModal
+        open={mapOpen}
+        title="Select customer location"
+        initial={
+          typeof selectedLat === "number" && typeof selectedLng === "number"
+            ? { lat: selectedLat, lng: selectedLng }
+            : null
+        }
+        onClose={() => setMapOpen(false)}
+        onConfirm={(coords) => {
+          setValue("lat", coords.lat, { shouldDirty: true });
+          setValue("lng", coords.lng, { shouldDirty: true });
+        }}
+      />
     </div>
   );
 }

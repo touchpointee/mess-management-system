@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { CoordinatePickerModal } from "@/components/common/CoordinatePickerModal";
 
 type SystemSettingsRes = {
   businessName: string;
@@ -19,6 +20,7 @@ export default function AdminSettingsPage() {
   const [city, setCity] = useState("");
   const [lat, setLat] = useState("");
   const [lng, setLng] = useState("");
+  const [mapOpen, setMapOpen] = useState(false);
   const [breakfastPrice, setBreakfastPrice] = useState("");
   const [lunchPrice, setLunchPrice] = useState("");
   const [dinnerPrice, setDinnerPrice] = useState("");
@@ -137,29 +139,28 @@ export default function AdminSettingsPage() {
               </div>
 
               <div>
-                <label className="admin-label">Latitude</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={lat}
-                  onChange={(e) => setLat(e.target.value)}
-                  className="admin-input"
-                  placeholder="8.5600"
-                  required
-                />
-              </div>
-
-              <div>
-                <label className="admin-label">Longitude</label>
-                <input
-                  type="number"
-                  step="any"
-                  value={lng}
-                  onChange={(e) => setLng(e.target.value)}
-                  className="admin-input"
-                  placeholder="76.8800"
-                  required
-                />
+                <label className="admin-label">Mess location (Map)</label>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setMapOpen(true)}
+                    className="admin-btn-secondary w-full"
+                  >
+                    {lat && lng ? "Change location" : "Select location on map"}
+                  </button>
+                  <div className="rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                    <span className="text-slate-500">Selected:</span>{" "}
+                    {lat && lng ? (
+                      <span className="font-medium">
+                        {Number(lat).toFixed(6)}, {Number(lng).toFixed(6)}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">—</span>
+                    )}
+                  </div>
+                  <input type="hidden" value={lat} readOnly required />
+                  <input type="hidden" value={lng} readOnly required />
+                </div>
               </div>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
@@ -227,6 +228,21 @@ export default function AdminSettingsPage() {
           ) : null}
         </div>
       </div>
+
+      <CoordinatePickerModal
+        open={mapOpen}
+        title="Select mess location"
+        initial={
+          Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))
+            ? { lat: Number(lat), lng: Number(lng) }
+            : null
+        }
+        onClose={() => setMapOpen(false)}
+        onConfirm={(coords) => {
+          setLat(String(coords.lat));
+          setLng(String(coords.lng));
+        }}
+      />
     </div>
   );
 }

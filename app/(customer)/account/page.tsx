@@ -9,6 +9,7 @@ import { z } from "zod";
 import { format } from "date-fns";
 import { MealType } from "@/lib/constants";
 import { formatCurrency } from "@/lib/utils";
+import { CoordinatePickerModal } from "@/components/common/CoordinatePickerModal";
 
 type AccountData = {
   user: {
@@ -45,13 +46,16 @@ type AddLocationForm = z.infer<typeof addLocationSchema>;
 export default function AccountPage() {
   const [data, setData] = useState<AccountData | null>(null);
   const [addingMeal, setAddingMeal] = useState<string | null>(null);
+  const [mapOpen, setMapOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { register, handleSubmit, reset, setValue, formState: { errors } } = useForm<AddLocationForm>({
+  const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<AddLocationForm>({
     resolver: zodResolver(addLocationSchema),
     defaultValues: { mealType: MealType.BREAKFAST, setAsDefault: false },
   });
+  const selectedLat = watch("lat");
+  const selectedLng = watch("lng");
 
   useEffect(() => {
     if (addingMeal) setValue("mealType", addingMeal as "BREAKFAST" | "LUNCH" | "DINNER");
@@ -222,22 +226,32 @@ export default function AccountPage() {
                     className="w-full border rounded px-3 py-2 text-sm"
                   />
                   {errors.address && <p className="text-red-600 text-xs">{errors.address.message}</p>}
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="number"
-                      step="any"
-                      {...register("lat", { valueAsNumber: true })}
-                      placeholder="Lat"
-                      className="border rounded px-3 py-2 text-sm"
-                    />
-                    <input
-                      type="number"
-                      step="any"
-                      {...register("lng", { valueAsNumber: true })}
-                      placeholder="Lng"
-                      className="border rounded px-3 py-2 text-sm"
-                    />
+                  <div className="space-y-2">
+                    <button
+                      type="button"
+                      onClick={() => setMapOpen(true)}
+                      className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    >
+                      {typeof selectedLat === "number" && typeof selectedLng === "number"
+                        ? "Change location on map"
+                        : "Select location on map"}
+                    </button>
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+                      <span className="text-gray-500">Selected:</span>{" "}
+                      {typeof selectedLat === "number" && typeof selectedLng === "number" ? (
+                        <span className="font-medium">
+                          {selectedLat.toFixed(6)}, {selectedLng.toFixed(6)}
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </div>
+                    <input type="hidden" {...register("lat", { valueAsNumber: true })} />
+                    <input type="hidden" {...register("lng", { valueAsNumber: true })} />
                   </div>
+                  {(errors.lat || errors.lng) && (
+                    <p className="text-red-600 text-xs">Please select a location on map.</p>
+                  )}
                   <input type="hidden" {...register("mealType")} />
                   <label className="flex items-center gap-2 text-sm">
                     <input type="checkbox" {...register("setAsDefault")} />
@@ -328,6 +342,21 @@ export default function AccountPage() {
           Logout
         </button>
       </div>
+
+      <CoordinatePickerModal
+        open={mapOpen}
+        title="Select delivery location"
+        initial={
+          typeof selectedLat === "number" && typeof selectedLng === "number"
+            ? { lat: selectedLat, lng: selectedLng }
+            : null
+        }
+        onClose={() => setMapOpen(false)}
+        onConfirm={(coords) => {
+          setValue("lat", coords.lat, { shouldDirty: true, shouldValidate: true });
+          setValue("lng", coords.lng, { shouldDirty: true, shouldValidate: true });
+        }}
+      />
     </div>
   );
 }
