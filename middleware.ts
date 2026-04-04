@@ -27,6 +27,23 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL("/overview", req.url));
   }
 
+  // Old admin route-group URLs (from `app/(admin)/*`) — keep redirects for existing bookmarks.
+  const legacyAdminPaths = [
+    "/dashboard",
+    "/customers",
+    "/payments",
+    "/settings",
+    "/delivery-map",
+  ];
+  if (legacyAdminPaths.includes(path)) {
+    return NextResponse.redirect(new URL(`/admin${path}`, req.url));
+  }
+  if (path.startsWith("/customers/")) {
+    return NextResponse.redirect(
+      new URL(`/admin${path}`, req.url)
+    );
+  }
+
   const customerProtected = ["/my-mess", "/overview", "/account"];
   if (customerProtected.includes(path) && !token) {
     return NextResponse.redirect(new URL("/login", req.url));
@@ -41,6 +58,12 @@ export const config = {
     "/my-mess",
     "/overview",
     "/account",
+    "/dashboard",
+    "/customers",
+    "/customers/:path*",
+    "/payments",
+    "/settings",
+    "/delivery-map",
     "/admin/:path*",
     "/admin",
     "/admin-login",

@@ -6,8 +6,8 @@ import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
 
 const links = [
-  { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/customers", label: "Customers" },
+  { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/delivery-map", label: "Delivery Map" },
   { href: "/admin/payments", label: "Payments" },
   { href: "/admin/settings", label: "Settings" },
@@ -15,16 +15,16 @@ const links = [
 
 export function Sidebar() {
   const pathname = usePathname();
-  const [businessName, setBusinessName] = useState("Admin Portal");
+  const [businessName, setBusinessName] = useState("Mess Portal");
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     fetch("/api/system")
       .then((res) => res.json())
       .then((data) => {
-        setBusinessName(data.businessName || "Admin Portal");
+        setBusinessName(data.businessName || "Mess Portal");
       })
-      .catch(() => setBusinessName("Admin Portal"));
+      .catch(() => setBusinessName("Mess Portal"));
   }, []);
 
   useEffect(() => {
@@ -43,7 +43,7 @@ export function Sidebar() {
       <div className="sticky top-0 z-30 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur sm:px-6 lg:hidden">
         <div className="flex items-center justify-between">
           <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Admin</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Mess</p>
             <p className="text-sm font-semibold text-slate-900">{businessName}</p>
           </div>
           <button
@@ -66,6 +66,7 @@ export function Sidebar() {
           />
           <aside className="relative h-full w-72 max-w-[80%] border-r border-slate-200 bg-white p-4 shadow-xl">
             <p className="mb-5 text-lg font-semibold text-slate-900">{businessName}</p>
+            <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Mess</p>
             <nav className="flex flex-col gap-1.5">
               {links.map(({ href, label }) => (
                 <Link key={href} href={href} className={linkClass(href)}>
@@ -88,6 +89,7 @@ export function Sidebar() {
 
       <aside className="hidden border-r border-slate-200 bg-white p-5 lg:fixed lg:inset-y-0 lg:left-0 lg:z-20 lg:flex lg:h-screen lg:w-64 lg:flex-col lg:overflow-y-auto">
         <p className="mb-6 text-lg font-semibold text-slate-900">{businessName}</p>
+        <p className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Mess</p>
         <nav className="flex flex-col gap-1.5">
           {links.map(({ href, label }) => (
             <Link key={href} href={href} className={linkClass(href)}>

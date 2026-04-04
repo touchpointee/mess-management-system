@@ -40,6 +40,31 @@ export type BillingMealPrices = {
   dinnerPrice: number;
 };
 
+export type BillingOfferOverrides = {
+  offerBreakfastPrice?: number | null;
+  offerLunchPrice?: number | null;
+  offerDinnerPrice?: number | null;
+};
+
+export function applyOfferMealPrices(
+  base: BillingMealPrices,
+  offer?: BillingOfferOverrides | null
+): BillingMealPrices {
+  const b =
+    typeof offer?.offerBreakfastPrice === "number" && offer.offerBreakfastPrice >= 0
+      ? offer.offerBreakfastPrice
+      : base.breakfastPrice;
+  const l =
+    typeof offer?.offerLunchPrice === "number" && offer.offerLunchPrice >= 0
+      ? offer.offerLunchPrice
+      : base.lunchPrice;
+  const d =
+    typeof offer?.offerDinnerPrice === "number" && offer.offerDinnerPrice >= 0
+      ? offer.offerDinnerPrice
+      : base.dinnerPrice;
+  return { breakfastPrice: b, lunchPrice: l, dinnerPrice: d };
+}
+
 export type BillingMealBooking = {
   date: Date;
   mealType: string;

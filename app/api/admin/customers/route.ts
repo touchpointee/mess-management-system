@@ -3,7 +3,7 @@ import { getAuthToken } from "@/lib/getToken";
 import { hash } from "bcryptjs";
 import { connectDB } from "@/lib/mongodb";
 import { User, SystemSettings, Payment, DayBooking, Leave } from "@/lib/models";
-import { daysBetween, getBillingSummary } from "@/lib/utils";
+import { applyOfferMealPrices, daysBetween, getBillingSummary } from "@/lib/utils";
 import { Role } from "@/lib/constants";
 
 export async function GET(req: Request) {
@@ -61,11 +61,16 @@ export async function GET(req: Request) {
   const list = customers.map((c) => {
     const startDate = c.startDate ? new Date(c.startDate) : null;
     const payList = paymentsByUser.get(c._id) ?? [];
+    const effectivePrices = applyOfferMealPrices(mealPrices, {
+      offerBreakfastPrice: (c as { offerBreakfastPrice?: number | null }).offerBreakfastPrice ?? null,
+      offerLunchPrice: (c as { offerLunchPrice?: number | null }).offerLunchPrice ?? null,
+      offerDinnerPrice: (c as { offerDinnerPrice?: number | null }).offerDinnerPrice ?? null,
+    });
     const billing = getBillingSummary(
       startDate,
       bookingsByUser.get(c._id) ?? [],
       leavesByUser.get(c._id) ?? [],
-      mealPrices,
+      effectivePrices,
       payList.map((payment) => payment.amount),
       today
     );
@@ -80,6 +85,11 @@ export async function GET(req: Request) {
       balanceDue: billing.netBalance,
       dueAmount: billing.dueAmount,
       advanceAmount: billing.advanceAmount,
+      offerPrices: {
+        breakfast: (c as { offerBreakfastPrice?: number | null }).offerBreakfastPrice ?? null,
+        lunch: (c as { offerLunchPrice?: number | null }).offerLunchPrice ?? null,
+        dinner: (c as { offerDinnerPrice?: number | null }).offerDinnerPrice ?? null,
+      },
     };
   });
   return NextResponse.json(list);

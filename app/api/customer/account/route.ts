@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/getToken";
 import { connectDB } from "@/lib/mongodb";
 import { User, Payment, DeliveryLocation, DayBooking, Leave, SystemSettings } from "@/lib/models";
-import { getBillingSummary, getNextDueDate } from "@/lib/utils";
+import { applyOfferMealPrices, getBillingSummary, getNextDueDate } from "@/lib/utils";
 
 export async function GET(req: Request) {
   const token = await getAuthToken(req);
@@ -30,6 +30,11 @@ export async function GET(req: Request) {
     lunchPrice: settings?.lunchPrice ?? 0,
     dinnerPrice: settings?.dinnerPrice ?? 0,
   };
+  const effectivePrices = applyOfferMealPrices(mealPrices, {
+    offerBreakfastPrice: (user as { offerBreakfastPrice?: number | null }).offerBreakfastPrice ?? null,
+    offerLunchPrice: (user as { offerLunchPrice?: number | null }).offerLunchPrice ?? null,
+    offerDinnerPrice: (user as { offerDinnerPrice?: number | null }).offerDinnerPrice ?? null,
+  });
   const billingStart = user.startDate ? new Date(user.startDate) : null;
   const billing = getBillingSummary(
     billingStart,
@@ -38,7 +43,7 @@ export async function GET(req: Request) {
       mealType: booking.mealType,
     })),
     leaves.map((l) => ({ date: l.date, mealType: l.mealType })),
-    mealPrices,
+    effectivePrices,
     payments.map((payment) => payment.amount),
     today
   );
@@ -56,6 +61,12 @@ export async function GET(req: Request) {
       address: user.address,
       startDate: user.startDate,
     },
+    offerPrices: {
+      breakfast: (user as { offerBreakfastPrice?: number | null }).offerBreakfastPrice ?? null,
+      lunch: (user as { offerLunchPrice?: number | null }).offerLunchPrice ?? null,
+      dinner: (user as { offerDinnerPrice?: number | null }).offerDinnerPrice ?? null,
+    },
+    effectiveMealPrices: effectivePrices,
     payments: payments.map((p) => ({
       id: p._id,
       date: p.date,

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/getToken";
 import { connectDB } from "@/lib/mongodb";
 import { User, Leave, DayBooking, DeliveryLocation, Payment, SystemSettings } from "@/lib/models";
-import { buildLedgerAndMonthlyClosing, getBillingSummary } from "@/lib/utils";
+import { applyOfferMealPrices, buildLedgerAndMonthlyClosing, getBillingSummary } from "@/lib/utils";
 
 export async function GET(
   req: Request,
@@ -57,6 +57,11 @@ export async function GET(
     lunchPrice: settings?.lunchPrice ?? 0,
     dinnerPrice: settings?.dinnerPrice ?? 0,
   };
+  const effectivePrices = applyOfferMealPrices(mealPrices, {
+    offerBreakfastPrice: (user as { offerBreakfastPrice?: number | null }).offerBreakfastPrice ?? null,
+    offerLunchPrice: (user as { offerLunchPrice?: number | null }).offerLunchPrice ?? null,
+    offerDinnerPrice: (user as { offerDinnerPrice?: number | null }).offerDinnerPrice ?? null,
+  });
   const billingStart = user.startDate ? new Date(user.startDate) : null;
   const billing = getBillingSummary(
     billingStart,
@@ -65,7 +70,7 @@ export async function GET(
       mealType: booking.mealType,
     })),
     allLeaves.map((l) => ({ date: l.date, mealType: l.mealType })),
-    mealPrices,
+    effectivePrices,
     payments.map((payment) => payment.amount),
     today
   );
@@ -76,7 +81,7 @@ export async function GET(
       mealType: booking.mealType,
     })),
     allLeaves.map((l) => ({ date: l.date, mealType: l.mealType })),
-    mealPrices,
+    effectivePrices,
     payments.map((payment) => ({
       id: payment._id,
       amount: payment.amount,
@@ -101,6 +106,12 @@ export async function GET(
   return NextResponse.json({
     ...userRest,
     id: user._id,
+    offerPrices: {
+      breakfast: (user as { offerBreakfastPrice?: number | null }).offerBreakfastPrice ?? null,
+      lunch: (user as { offerLunchPrice?: number | null }).offerLunchPrice ?? null,
+      dinner: (user as { offerDinnerPrice?: number | null }).offerDinnerPrice ?? null,
+    },
+    effectiveMealPrices: effectivePrices,
     payments: payments.map((p) => ({
       id: p._id,
       userId: p.userId,
@@ -177,7 +188,7 @@ export async function PATCH(
   }
   try {
     const body = await req.json();
-    const { name, phone, email, address, lat, lng, startDate } = body;
+    const { name, phone, email, address, lat, lng, startDate, offerPrices } = body;
     const update: Record<string, unknown> = {};
     if (name !== undefined) update.name = String(name).trim();
     if (phone !== undefined) update.phone = String(phone).trim();
@@ -196,6 +207,27 @@ export async function PATCH(
     if (startDate !== undefined) {
       update.startDate =
         startDate === "" || startDate === null ? null : new Date(startDate);
+    }
+
+    const coerceOffer = (v: unknown): number | null | undefined => {
+      if (v === undefined) return undefined;
+      if (v === null || v === "") return null;
+      const n = typeof v === "number" ? v : Number(v);
+      if (!Number.isFinite(n) || n < 0) return undefined;
+      return n;
+    };
+    if (offerPrices !== undefined) {
+      const op = offerPrices as {
+        breakfast?: unknown;
+        lunch?: unknown;
+        dinner?: unknown;
+      };
+      const b = coerceOffer(op?.breakfast);
+      const l = coerceOffer(op?.lunch);
+      const d = coerceOffer(op?.dinner);
+      if (b !== undefined) update.offerBreakfastPrice = b;
+      if (l !== undefined) update.offerLunchPrice = l;
+      if (d !== undefined) update.offerDinnerPrice = d;
     }
     if (Object.keys(update).length > 0) {
       await User.updateOne({ _id: id }, { $set: update });

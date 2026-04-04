@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/getToken";
 import { connectDB } from "@/lib/mongodb";
 import { User, SystemSettings, Payment, DayBooking, Leave } from "@/lib/models";
-import { getBillingSummary } from "@/lib/utils";
+import { applyOfferMealPrices, getBillingSummary } from "@/lib/utils";
 
 export async function GET(req: Request) {
   const token = await getAuthToken(req);
@@ -58,11 +58,16 @@ export async function GET(req: Request) {
   const today = new Date();
   const due = customers
     .map((c) => {
+      const effectivePrices = applyOfferMealPrices(mealPrices, {
+        offerBreakfastPrice: (c as { offerBreakfastPrice?: number | null }).offerBreakfastPrice ?? null,
+        offerLunchPrice: (c as { offerLunchPrice?: number | null }).offerLunchPrice ?? null,
+        offerDinnerPrice: (c as { offerDinnerPrice?: number | null }).offerDinnerPrice ?? null,
+      });
       const billing = getBillingSummary(
         c.startDate ? new Date(c.startDate) : null,
         bookingsByUser.get(c._id) ?? [],
         leavesByUser.get(c._id) ?? [],
-        mealPrices,
+        effectivePrices,
         (paymentsByUser.get(c._id) ?? []).map((payment) => payment.amount),
         today
       );
@@ -77,6 +82,11 @@ export async function GET(req: Request) {
         balance: billing.netBalance,
         dueAmount: billing.dueAmount,
         advanceAmount: billing.advanceAmount,
+        offerPrices: {
+          breakfast: (c as { offerBreakfastPrice?: number | null }).offerBreakfastPrice ?? null,
+          lunch: (c as { offerLunchPrice?: number | null }).offerLunchPrice ?? null,
+          dinner: (c as { offerDinnerPrice?: number | null }).offerDinnerPrice ?? null,
+        },
       };
     })
     .filter((x) => x.dueAmount > 0)

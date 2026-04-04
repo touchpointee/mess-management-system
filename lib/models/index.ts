@@ -15,6 +15,9 @@ const UserSchema = new Schema(
     lat: { type: Number, default: null },
     lng: { type: Number, default: null },
     startDate: { type: Date, default: null },
+    offerBreakfastPrice: { type: Number, default: null },
+    offerLunchPrice: { type: Number, default: null },
+    offerDinnerPrice: { type: Number, default: null },
     createdAt: { type: Date, default: Date.now },
   },
   { versionKey: false }

@@ -1,2 +1,2 @@
-export { default } from "../../(admin)/customers/page";
+export { default } from "./CustomersClient";
 
