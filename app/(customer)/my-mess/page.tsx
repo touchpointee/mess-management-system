@@ -9,11 +9,14 @@ import { MealToggleRow } from "@/components/customer/MealToggleRow";
 import { MessHeroCard } from "@/components/customer/MessHeroCard";
 import { LocationPicker, type LocationItem } from "@/components/customer/LocationPicker";
 import { LeaveRangeModal } from "@/components/customer/LeaveRangeModal";
+import { PlanSummaryCard } from "@/components/customer/PlanSummaryCard";
 import { MealType } from "@/lib/constants";
 import { canEditMeal } from "@/lib/utils";
 
 type MealState = {
   active: boolean;
+  isLeave?: boolean;
+  isHoliday?: boolean;
   location: { id: string; label: string; address: string } | null;
 };
 
@@ -209,8 +212,12 @@ export default function MyMessPage() {
       <div className="p-4 pb-0">
         <MessHeroCard tomorrowMeals={tomorrowMeals} />
       </div>
+      {/* Plan Summary Section */}
+      <div className="px-4 pt-4">
+        <PlanSummaryCard />
+      </div>
       {/* Manage your meals section */}
-      <div className="p-4 pt-5">
+      <div className="p-4 pt-6">
         {error ? (
           <div className="mb-3 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-600">{error}</div>
         ) : null}
@@ -231,13 +238,14 @@ export default function MyMessPage() {
           <BookingToggle
             on={bookingOn}
             onToggle={toggleBooking}
-            disabled={!editable}
+            disabled={!editable || (meals?.B?.isHoliday && meals?.L?.isHoliday && meals?.D?.isHoliday)}
           />
           <div className="bg-white rounded-[16px] shadow-[0_2px_8px_rgba(0,0,0,0.08)] overflow-hidden px-4">
             <MealToggleRow
               mealName="Breakfast"
               address={meals.B.location?.address ?? null}
               active={meals.B.active}
+              isHoliday={meals.B.isHoliday}
               onToggle={() => toggleMeal(MealType.BREAKFAST)}
               onAddressClick={() => setLocationPickerMeal(MealType.BREAKFAST)}
               disabled={!editable}
@@ -246,6 +254,7 @@ export default function MyMessPage() {
               mealName="Lunch"
               address={meals.L.location?.address ?? null}
               active={meals.L.active}
+              isHoliday={meals.L.isHoliday}
               onToggle={() => toggleMeal(MealType.LUNCH)}
               onAddressClick={() => setLocationPickerMeal(MealType.LUNCH)}
               disabled={!editable}
@@ -254,6 +263,7 @@ export default function MyMessPage() {
               mealName="Dinner"
               address={meals.D.location?.address ?? null}
               active={meals.D.active}
+              isHoliday={meals.D.isHoliday}
               onToggle={() => toggleMeal(MealType.DINNER)}
               onAddressClick={() => setLocationPickerMeal(MealType.DINNER)}
               disabled={!editable}

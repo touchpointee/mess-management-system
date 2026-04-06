@@ -9,6 +9,7 @@ type MealToggleRowProps = {
   onToggle: () => void;
   onAddressClick: () => void;
   disabled?: boolean;
+  isHoliday?: boolean;
 };
 
 function truncate(str: string, len: number) {
@@ -23,6 +24,7 @@ export function MealToggleRow({
   onToggle,
   onAddressClick,
   disabled,
+  isHoliday,
 }: MealToggleRowProps) {
   return (
     <div className="py-3.5 flex items-center justify-between border-b border-gray-100 last:border-0">
@@ -36,25 +38,31 @@ export function MealToggleRow({
           {address ? truncate(address, 30) : "Add location"}
         </button>
       </div>
-      <button
-        type="button"
-        role="switch"
-        aria-checked={active}
-        disabled={disabled}
-        onClick={onToggle}
-        className={cn(
-          "relative w-12 h-7 rounded-full transition-colors flex-shrink-0",
-          active ? "bg-[#C0392B]" : "bg-gray-300",
-          disabled && "opacity-60 cursor-not-allowed"
-        )}
-      >
-        <span
+      {isHoliday ? (
+        <span className="text-xs font-semibold px-2.5 py-1 bg-gray-100 text-[#C0392B] border border-red-100 rounded-full flex-shrink-0">
+          Holiday
+        </span>
+      ) : (
+        <button
+          type="button"
+          role="switch"
+          aria-checked={active}
+          disabled={disabled}
+          onClick={onToggle}
           className={cn(
-            "absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200",
-            active ? "translate-x-5" : "translate-x-0"
+            "relative w-12 h-7 rounded-full transition-colors flex-shrink-0",
+            active ? "bg-[#C0392B]" : "bg-gray-300",
+            disabled && "opacity-60 cursor-not-allowed"
           )}
-        />
-      </button>
+        >
+          <span
+            className={cn(
+              "absolute top-1 left-1 w-5 h-5 rounded-full bg-white shadow transition-transform duration-200",
+              active ? "translate-x-5" : "translate-x-0"
+            )}
+          />
+        </button>
+      )}
     </div>
   );
 }

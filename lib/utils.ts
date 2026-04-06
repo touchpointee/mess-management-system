@@ -75,6 +75,11 @@ export type BillingLeave = {
   mealType: string;
 };
 
+export type BillingMessHoliday = {
+  date: Date;
+  mealType: string; // "ALL", "BREAKFAST", "LUNCH", "DINNER"
+};
+
 function getMealUnitPrice(mealType: string, prices: BillingMealPrices): number {
   if (mealType === MealType.BREAKFAST) return prices.breakfastPrice;
   if (mealType === MealType.LUNCH) return prices.lunchPrice;
@@ -111,14 +116,59 @@ export function filterBillableBookings(
   });
 }
 
+export function generateExpectedMeals(
+  billingStartDate: Date | null,
+  billingEndDate: Date | null,
+  messHolidays: BillingMessHoliday[],
+  asOf: Date
+): BillingMealBooking[] {
+  if (!billingStartDate) return [];
+  const start = startOfDay(billingStartDate);
+  const end = billingEndDate ? startOfDay(billingEndDate) : null;
+  const asOfDay = startOfDay(asOf);
+  
+  let effectiveEnd = asOfDay;
+  if (end && end.getTime() < asOfDay.getTime()) {
+    effectiveEnd = end;
+  }
+  
+  
+  const holidayDateOnlySet = new Set(
+    messHolidays.filter(h => h.mealType === "ALL").map(h => fnsFormat(startOfDay(h.date), "yyyy-MM-dd"))
+  );
+  const holidaySpecificSet = new Set(
+    messHolidays.filter(h => h.mealType !== "ALL").map(h => mealSlotKey(h.date, h.mealType))
+  );
+
+  const expected: BillingMealBooking[] = [];
+  let d = start;
+  while (d.getTime() <= effectiveEnd.getTime()) {
+    const dStr = fnsFormat(d, "yyyy-MM-dd");
+    if (!holidayDateOnlySet.has(dStr)) {
+      if (!holidaySpecificSet.has(`${dStr}:${MealType.BREAKFAST}`)) {
+        expected.push({ date: d, mealType: MealType.BREAKFAST });
+      }
+      if (!holidaySpecificSet.has(`${dStr}:${MealType.LUNCH}`)) {
+        expected.push({ date: d, mealType: MealType.LUNCH });
+      }
+      if (!holidaySpecificSet.has(`${dStr}:${MealType.DINNER}`)) {
+        expected.push({ date: d, mealType: MealType.DINNER });
+      }
+    }
+    d = addDays(d, 1);
+  }
+  return expected;
+}
+
 /**
  * Meal-price billing: total due = sum of billable booked meals (minus leaves) from billing start.
  * cyclesCompleted = full 30-day periods since startDate (for next due / overdue messaging).
  */
 export function getBillingSummary(
   billingStartDate: Date | null,
-  mealBookings: BillingMealBooking[],
+  billingEndDate: Date | null,
   leaves: BillingLeave[],
+  messHolidays: BillingMessHoliday[],
   mealPrices: BillingMealPrices,
   paymentAmounts: number[],
   asOf: Date = new Date()
@@ -132,8 +182,9 @@ export function getBillingSummary(
   advanceAmount: number;
 } {
   const leaveKeySet = buildLeaveKeySet(leaves);
+  const expectedMeals = generateExpectedMeals(billingStartDate, billingEndDate, messHolidays, asOf);
   const billable = filterBillableBookings(
-    mealBookings,
+    expectedMeals,
     leaveKeySet,
     billingStartDate,
     asOf
@@ -251,8 +302,9 @@ export type MonthlyClosingEntry = {
 
 export function buildLedgerAndMonthlyClosing(
   billingStartDate: Date | null,
-  mealBookings: BillingMealBooking[],
+  billingEndDate: Date | null,
   leaves: BillingLeave[],
+  messHolidays: BillingMessHoliday[],
   mealPrices: BillingMealPrices,
   payments: LedgerPayment[],
   asOf: Date = new Date()
@@ -267,8 +319,9 @@ export function buildLedgerAndMonthlyClosing(
   const events: Omit<AccountLedgerEntry, "runningBalance">[] = [];
 
   const leaveKeySet = buildLeaveKeySet(leaves);
+  const expectedMeals = generateExpectedMeals(billingStartDate, billingEndDate, messHolidays, asOf);
   const effectiveBookings = filterBillableBookings(
-    mealBookings,
+    expectedMeals,
     leaveKeySet,
     billingStartDate,
     asOf

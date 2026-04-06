@@ -15,6 +15,7 @@ const UserSchema = new Schema(
     lat: { type: Number, default: null },
     lng: { type: Number, default: null },
     startDate: { type: Date, default: null },
+    endDate: { type: Date, default: null },
     offerBreakfastPrice: { type: Number, default: null },
     offerLunchPrice: { type: Number, default: null },
     offerDinnerPrice: { type: Number, default: null },
@@ -93,6 +94,17 @@ const DayBookingSchema = new Schema(
 );
 DayBookingSchema.index({ userId: 1, date: 1, mealType: 1 }, { unique: true });
 
+const MessHolidaySchema = new Schema(
+  {
+    _id: { type: String, default: idDefault },
+    date: { type: Date, required: true },
+    mealType: { type: String, required: true }, // "ALL", "BREAKFAST", "LUNCH", "DINNER"
+    createdAt: { type: Date, default: Date.now },
+  },
+  { versionKey: false }
+);
+MessHolidaySchema.index({ date: 1, mealType: 1 }, { unique: true });
+
 export const User =
   mongoose.models.User ?? mongoose.model("User", UserSchema);
 export const SystemSettings =
@@ -107,3 +119,5 @@ export const Leave =
   mongoose.models.Leave ?? mongoose.model("Leave", LeaveSchema);
 export const DayBooking =
   mongoose.models.DayBooking ?? mongoose.model("DayBooking", DayBookingSchema);
+export const MessHoliday =
+  mongoose.models.MessHoliday ?? mongoose.model("MessHoliday", MessHolidaySchema);

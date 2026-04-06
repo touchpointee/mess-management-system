@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/getToken";
 import { connectDB } from "@/lib/mongodb";
-import { User, Leave, DeliveryLocation, DayBooking } from "@/lib/models";
+import { User, Leave, DeliveryLocation, DayBooking, MessHoliday } from "@/lib/models";
 import { startOfDay } from "date-fns";
 import { MealType } from "@/lib/constants";
 import { dayRangeFilter } from "@/lib/dayRange";
@@ -23,13 +23,14 @@ export async function GET(req: Request) {
   }
 
   await connectDB();
-  const [user, leaves, locations, bookings] = await Promise.all([
+  const [user, leaves, locations, bookings, holidays] = await Promise.all([
     User.findById(userId).select({ startDate: 1 }).lean(),
     Leave.find({ userId, date: dayRangeFilter(date) }).select({ mealType: 1 }).lean(),
     DeliveryLocation.find({ userId }).sort({ isDefault: -1 }).lean(),
     DayBooking.find({ userId, date: dayRangeFilter(date) })
       .select({ mealType: 1, deliveryLocationId: 1 })
       .lean(),
+    MessHoliday.find({ date: dayRangeFilter(date) }).lean()
   ]);
 
   const billingStart = user?.startDate ? startOfDay(new Date(user.startDate)) : null;
@@ -55,17 +56,27 @@ export async function GET(req: Request) {
       : null;
   };
 
+  const isHoliday = (mt: string) => {
+    return holidays.some(h => (h as any).mealType === "ALL" || (h as any).mealType === mt);
+  };
+
   const result = {
     B: {
-      active: onOrAfterStart && !leaveSet.has(MealType.BREAKFAST),
+      active: onOrAfterStart && !leaveSet.has(MealType.BREAKFAST) && !isHoliday(MealType.BREAKFAST),
+      isLeave: leaveSet.has(MealType.BREAKFAST),
+      isHoliday: isHoliday(MealType.BREAKFAST),
       location: getLocation(MealType.BREAKFAST),
     },
     L: {
-      active: onOrAfterStart && !leaveSet.has(MealType.LUNCH),
+      active: onOrAfterStart && !leaveSet.has(MealType.LUNCH) && !isHoliday(MealType.LUNCH),
+      isLeave: leaveSet.has(MealType.LUNCH),
+      isHoliday: isHoliday(MealType.LUNCH),
       location: getLocation(MealType.LUNCH),
     },
     D: {
-      active: onOrAfterStart && !leaveSet.has(MealType.DINNER),
+      active: onOrAfterStart && !leaveSet.has(MealType.DINNER) && !isHoliday(MealType.DINNER),
+      isLeave: leaveSet.has(MealType.DINNER),
+      isHoliday: isHoliday(MealType.DINNER),
       location: getLocation(MealType.DINNER),
     },
   };

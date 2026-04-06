@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/getToken";
 import { connectDB } from "@/lib/mongodb";
-import { User, Payment, DeliveryLocation, DayBooking, Leave, SystemSettings } from "@/lib/models";
+import { User, Payment, DeliveryLocation, Leave, SystemSettings, MessHoliday } from "@/lib/models";
 import { applyOfferMealPrices, getBillingSummary, getNextDueDate } from "@/lib/utils";
 
 export async function GET(req: Request) {
@@ -15,11 +15,11 @@ export async function GET(req: Request) {
   if (!user) {
     return NextResponse.json({ message: "User not found; session may be stale. Please log out and log in again." }, { status: 401 });
   }
-  const [payments, locations, bookings, leaves] = await Promise.all([
+  const [payments, locations, leaves, messHolidays] = await Promise.all([
     Payment.find({ userId }).sort({ date: -1 }).lean(),
     DeliveryLocation.find({ userId }).lean(),
-    DayBooking.find({ userId }).select({ date: 1, mealType: 1 }).lean(),
     Leave.find({ userId }).select({ date: 1, mealType: 1 }).lean(),
+    MessHoliday.find().lean() as Promise<{ date: Date; mealType: string }[]>,
   ]);
   const today = new Date();
   const settings = await SystemSettings.findById("default")
@@ -36,13 +36,12 @@ export async function GET(req: Request) {
     offerDinnerPrice: (user as { offerDinnerPrice?: number | null }).offerDinnerPrice ?? null,
   });
   const billingStart = user.startDate ? new Date(user.startDate) : null;
+  const billingEnd = user.endDate ? new Date(user.endDate) : null;
   const billing = getBillingSummary(
     billingStart,
-    bookings.map((booking) => ({
-      date: booking.date,
-      mealType: booking.mealType,
-    })),
+    billingEnd,
     leaves.map((l) => ({ date: l.date, mealType: l.mealType })),
+    messHolidays,
     effectivePrices,
     payments.map((payment) => payment.amount),
     today
@@ -60,6 +59,7 @@ export async function GET(req: Request) {
       email: user.email,
       address: user.address,
       startDate: user.startDate,
+      endDate: user.endDate,
     },
     offerPrices: {
       breakfast: (user as { offerBreakfastPrice?: number | null }).offerBreakfastPrice ?? null,

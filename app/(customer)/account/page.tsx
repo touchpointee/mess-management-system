@@ -19,6 +19,7 @@ type AccountData = {
     email: string | null;
     address: string | null;
     startDate: string | null;
+    endDate: string | null;
   };
   payments: { id: string; date: string; amount: number; note: string | null }[];
   cyclesCompleted: number;
@@ -319,10 +320,14 @@ export default function AccountPage() {
           payment is due every 30 days.
         </p>
         <p className="text-sm mt-2">
-          <span className="text-gray-500">Billing start: </span>
+          <span className="text-gray-500">Plan limit: </span>
           {data.user.startDate
             ? format(new Date(data.user.startDate), "dd MMM yyyy")
             : "—"}
+          {" to "}
+          {data.user.endDate
+            ? format(new Date(data.user.endDate), "dd MMM yyyy")
+            : "No end date"}
         </p>
         {data.nextDueDate ? (
           <p className="text-sm mt-1">

@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/getToken";
 import { hash } from "bcryptjs";
 import { connectDB } from "@/lib/mongodb";
-import { User, SystemSettings, Payment, DayBooking, Leave } from "@/lib/models";
+import { User, SystemSettings, Payment, Leave, MessHoliday } from "@/lib/models";
 import { applyOfferMealPrices, daysBetween, getBillingSummary } from "@/lib/utils";
 import { Role } from "@/lib/constants";
 
@@ -14,14 +14,9 @@ export async function GET(req: Request) {
   await connectDB();
   const customers = await User.find({ role: Role.CUSTOMER }).lean();
   const customerIds = customers.map((c) => c._id);
-  const [paymentsAll, bookingsAll, settings, allLeaves] = await Promise.all([
+  const [paymentsAll, settings, allLeaves, messHolidays] = await Promise.all([
     customerIds.length
       ? Payment.find({ userId: { $in: customerIds } }).lean()
-      : Promise.resolve([]),
-    customerIds.length
-      ? DayBooking.find({ userId: { $in: customerIds } })
-          .select({ userId: 1, date: 1, mealType: 1 })
-          .lean()
       : Promise.resolve([]),
     SystemSettings.findById("default")
       .select({ breakfastPrice: 1, lunchPrice: 1, dinnerPrice: 1 })
@@ -33,18 +28,13 @@ export async function GET(req: Request) {
           mealType: 1,
         }).lean()
       : Promise.resolve([]),
+    MessHoliday.find().lean(),
   ]);
   const paymentsByUser = new Map<string, { amount: number }[]>();
   for (const p of paymentsAll) {
     const list = paymentsByUser.get(p.userId) ?? [];
     list.push({ amount: p.amount });
     paymentsByUser.set(p.userId, list);
-  }
-  const bookingsByUser = new Map<string, { date: Date; mealType: string }[]>();
-  for (const b of bookingsAll) {
-    const list = bookingsByUser.get(b.userId) ?? [];
-    list.push({ date: b.date, mealType: b.mealType });
-    bookingsByUser.set(b.userId, list);
   }
   const leavesByUser = new Map<string, { date: Date; mealType: string }[]>();
   for (const row of allLeaves) {
@@ -68,8 +58,9 @@ export async function GET(req: Request) {
     });
     const billing = getBillingSummary(
       startDate,
-      bookingsByUser.get(c._id) ?? [],
+      c.endDate ? new Date(c.endDate) : null,
       leavesByUser.get(c._id) ?? [],
+      messHolidays,
       effectivePrices,
       payList.map((payment) => payment.amount),
       today
@@ -81,6 +72,7 @@ export async function GET(req: Request) {
       phone: c.phone,
       email: c.email,
       startDate: c.startDate ?? null,
+      endDate: c.endDate ?? null,
       daysActive,
       balanceDue: billing.netBalance,
       dueAmount: billing.dueAmount,
@@ -111,6 +103,7 @@ export async function POST(req: Request) {
       lat,
       lng,
       startDate,
+      endDate,
     } = body as {
       name: string;
       phone: string;
@@ -120,6 +113,7 @@ export async function POST(req: Request) {
       lat?: number;
       lng?: number;
       startDate?: string;
+      endDate?: string;
     };
     if (!name || !phone || !password) {
       return NextResponse.json(
@@ -148,6 +142,7 @@ export async function POST(req: Request) {
       lat: typeof lat === "number" ? lat : null,
       lng: typeof lng === "number" ? lng : null,
       ...(startDate ? { startDate: new Date(startDate) } : {}),
+      ...(endDate ? { endDate: new Date(endDate) } : {}),
     });
     return NextResponse.json({ success: true, id: user._id });
   } catch (e) {

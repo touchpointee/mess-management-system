@@ -46,6 +46,7 @@ type CustomerDetail = {
   email: string | null;
   address: string | null;
   startDate: string | null;
+  endDate: string | null;
   offerPrices?: { breakfast: number | null; lunch: number | null; dinner: number | null };
   effectiveMealPrices?: { breakfastPrice: number; lunchPrice: number; dinnerPrice: number };
   locations: { id: string; label: string; address: string; mealType: string }[];
@@ -83,6 +84,7 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
   const [addPaymentDate, setAddPaymentDate] = useState(format(new Date(), "yyyy-MM-dd"));
   const [addPaymentNote, setAddPaymentNote] = useState("");
   const [editStartDate, setEditStartDate] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
   const [offerBreakfast, setOfferBreakfast] = useState("");
   const [offerLunch, setOfferLunch] = useState("");
   const [offerDinner, setOfferDinner] = useState("");
@@ -102,6 +104,7 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
         setLeavesPage(d.historyMeta?.leaves?.page ?? nextLeavesPage);
         setBookingsPage(d.historyMeta?.bookings?.page ?? nextBookingsPage);
         setEditStartDate(d.startDate ? format(new Date(d.startDate), "yyyy-MM-dd") : "");
+        setEditEndDate(d.endDate ? format(new Date(d.endDate), "yyyy-MM-dd") : "");
         setOfferBreakfast(
           d.offerPrices?.breakfast === null || d.offerPrices?.breakfast === undefined
             ? ""
@@ -159,7 +162,7 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
     }
   };
 
-  const onSaveStartDate = async (e: React.FormEvent) => {
+  const onSavePlanDates = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     setError(null);
@@ -169,15 +172,16 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           startDate: editStartDate || null,
+          endDate: editEndDate || null,
         }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => null);
-        throw new Error(body?.message ?? "Failed to update billing start date");
+        throw new Error(body?.message ?? "Failed to update plan dates");
       }
       refresh();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to update billing start date");
+      setError(e instanceof Error ? e.message : "Failed to update plan dates");
     } finally {
       setSubmitting(false);
     }
@@ -270,9 +274,11 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
             </div>
           </div>
         ) : null}
-        <p className="mt-2">
-          <strong>Billing start:</strong>{" "}
+        <p className="mt-2 text-sm text-slate-700">
+          <strong>Plan Limit:</strong>{" "}
           {data.startDate ? format(new Date(data.startDate), "dd MMM yyyy") : "Not set"}
+          {" to "}
+          {data.endDate ? format(new Date(data.endDate), "dd MMM yyyy") : "No limit"}
         </p>
         <p>
           <strong>30-day cycles completed:</strong> {data.cyclesCompleted}
@@ -280,16 +286,30 @@ export function CustomerDetailClient({ customerId }: CustomerDetailClientProps) 
         <p>
           <strong>Billable meals (booked − leave):</strong> {data.billableMealCount}
         </p>
-        <form onSubmit={onSaveStartDate} className="mt-3 space-y-2 rounded-xl border border-slate-200 p-3">
-          <label className="admin-label">Billing start date</label>
-          <input
-            type="date"
-            value={editStartDate}
-            onChange={(e) => setEditStartDate(e.target.value)}
-            className="admin-input"
-          />
+        <form onSubmit={onSavePlanDates} className="mt-3 space-y-2 rounded-xl border border-slate-200 p-3">
+          <label className="admin-label">Plan Limits (Start & End Date)</label>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div>
+              <span className="text-xs text-slate-500">From Date</span>
+              <input
+                type="date"
+                value={editStartDate}
+                onChange={(e) => setEditStartDate(e.target.value)}
+                className="admin-input"
+              />
+            </div>
+            <div>
+              <span className="text-xs text-slate-500">To Date</span>
+              <input
+                type="date"
+                value={editEndDate}
+                onChange={(e) => setEditEndDate(e.target.value)}
+                className="admin-input"
+              />
+            </div>
+          </div>
           <button type="submit" disabled={submitting} className="admin-btn-primary">
-            Save start date
+            Save plan dates
           </button>
         </form>
 

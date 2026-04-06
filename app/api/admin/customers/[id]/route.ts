@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/getToken";
 import { connectDB } from "@/lib/mongodb";
-import { User, Leave, DayBooking, DeliveryLocation, Payment, SystemSettings } from "@/lib/models";
+import { User, Leave, DayBooking, DeliveryLocation, Payment, SystemSettings, MessHoliday } from "@/lib/models";
 import { applyOfferMealPrices, buildLedgerAndMonthlyClosing, getBillingSummary } from "@/lib/utils";
 
 export async function GET(
@@ -29,7 +29,7 @@ export async function GET(
   if (!user) {
     return NextResponse.json({ message: "Customer not found" }, { status: 404 });
   }
-  const [payments, locations, leavesPageRows, bookingsPageRows, leavesCount, bookingsCount, allLeaves, allBookings] =
+  const [payments, locations, leavesPageRows, bookingsPageRows] =
     await Promise.all([
       Payment.find({ userId: id }).sort({ date: 1 }).lean(),
       DeliveryLocation.find({ userId: id }).lean(),
@@ -43,10 +43,13 @@ export async function GET(
         .skip((bookingsPage - 1) * bookingsLimit)
         .limit(bookingsLimit)
         .lean(),
-      Leave.countDocuments({ userId: id }),
-      DayBooking.countDocuments({ userId: id }),
+    ]);
+  const [leavesCount, bookingsCount, allLeaves, messHolidays] =
+    await Promise.all([
+      Leave.countDocuments({ userId: id }).exec(),
+      DayBooking.countDocuments({ userId: id }).exec(),
       Leave.find({ userId: id }).select({ date: 1, mealType: 1 }).lean(),
-      DayBooking.find({ userId: id }).select({ date: 1, mealType: 1 }).lean(),
+      MessHoliday.find().lean() as Promise<{ date: Date; mealType: string }[]>,
     ]);
   const today = new Date();
   const settings = await SystemSettings.findById("default")
@@ -63,24 +66,21 @@ export async function GET(
     offerDinnerPrice: (user as { offerDinnerPrice?: number | null }).offerDinnerPrice ?? null,
   });
   const billingStart = user.startDate ? new Date(user.startDate) : null;
+  const billingEnd = user.endDate ? new Date(user.endDate) : null;
   const billing = getBillingSummary(
     billingStart,
-    allBookings.map((booking) => ({
-      date: booking.date,
-      mealType: booking.mealType,
-    })),
+    billingEnd,
     allLeaves.map((l) => ({ date: l.date, mealType: l.mealType })),
+    messHolidays,
     effectivePrices,
     payments.map((payment) => payment.amount),
     today
   );
   const { ledger, monthlyClosing } = buildLedgerAndMonthlyClosing(
     billingStart,
-    allBookings.map((booking) => ({
-      date: booking.date,
-      mealType: booking.mealType,
-    })),
+    billingEnd,
     allLeaves.map((l) => ({ date: l.date, mealType: l.mealType })),
+    messHolidays,
     effectivePrices,
     payments.map((payment) => ({
       id: payment._id,
@@ -188,7 +188,7 @@ export async function PATCH(
   }
   try {
     const body = await req.json();
-    const { name, phone, email, address, lat, lng, startDate, offerPrices } = body;
+    const { name, phone, email, address, lat, lng, startDate, endDate, offerPrices } = body;
     const update: Record<string, unknown> = {};
     if (name !== undefined) update.name = String(name).trim();
     if (phone !== undefined) update.phone = String(phone).trim();
@@ -207,6 +207,10 @@ export async function PATCH(
     if (startDate !== undefined) {
       update.startDate =
         startDate === "" || startDate === null ? null : new Date(startDate);
+    }
+    if (endDate !== undefined) {
+      update.endDate =
+        endDate === "" || endDate === null ? null : new Date(endDate);
     }
 
     const coerceOffer = (v: unknown): number | null | undefined => {

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/getToken";
 import { connectDB } from "@/lib/mongodb";
-import { User, SystemSettings, Payment, DayBooking, Leave } from "@/lib/models";
+import { User, SystemSettings, Payment, Leave, MessHoliday } from "@/lib/models";
 import { applyOfferMealPrices, getBillingSummary } from "@/lib/utils";
 
 export async function GET(req: Request) {
@@ -12,18 +12,14 @@ export async function GET(req: Request) {
   await connectDB();
   const customers = await User.find({ role: "CUSTOMER" }).lean();
   const customerIds = customers.map((c) => c._id);
-  const [paymentsAll, bookingsAll, settings, allLeaves] = await Promise.all([
+  const [paymentsAll, settings, messHolidays, allLeaves] = await Promise.all([
     customerIds.length
       ? Payment.find({ userId: { $in: customerIds } }).lean()
-      : Promise.resolve([]),
-    customerIds.length
-      ? DayBooking.find({ userId: { $in: customerIds } })
-          .select({ userId: 1, date: 1, mealType: 1 })
-          .lean()
       : Promise.resolve([]),
     SystemSettings.findById("default")
       .select({ breakfastPrice: 1, lunchPrice: 1, dinnerPrice: 1 })
       .lean(),
+    MessHoliday.find().lean() as Promise<{ date: Date; mealType: string }[]>,
     customerIds.length
       ? Leave.find({ userId: { $in: customerIds } }).select({
           userId: 1,
@@ -37,12 +33,6 @@ export async function GET(req: Request) {
     const list = paymentsByUser.get(p.userId) ?? [];
     list.push({ amount: p.amount });
     paymentsByUser.set(p.userId, list);
-  }
-  const bookingsByUser = new Map<string, { date: Date; mealType: string }[]>();
-  for (const b of bookingsAll) {
-    const list = bookingsByUser.get(b.userId) ?? [];
-    list.push({ date: b.date, mealType: b.mealType });
-    bookingsByUser.set(b.userId, list);
   }
   const leavesByUser = new Map<string, { date: Date; mealType: string }[]>();
   for (const row of allLeaves) {
@@ -65,8 +55,9 @@ export async function GET(req: Request) {
       });
       const billing = getBillingSummary(
         c.startDate ? new Date(c.startDate) : null,
-        bookingsByUser.get(c._id) ?? [],
+        c.endDate ? new Date(c.endDate) : null,
         leavesByUser.get(c._id) ?? [],
+        messHolidays,
         effectivePrices,
         (paymentsByUser.get(c._id) ?? []).map((payment) => payment.amount),
         today
