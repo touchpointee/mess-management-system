@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 
-/** Customer “home” is hidden; send users to Overview. */
+/** Customer home is hidden; send users to My Mess. */
 export default function CustomerRootPage() {
-  redirect("/overview");
+  redirect("/my-mess");
 }

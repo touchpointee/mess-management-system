@@ -14,6 +14,13 @@ type DashboardRes = {
   tomorrowLabel: string;
   activeCustomers: number;
   leaveSummary: { customerId: string; name: string; B: boolean; L: boolean; D: boolean }[];
+  recentDeliveredOrders: {
+    id: string;
+    customerName: string;
+    mealType: string;
+    deliveredAt: string | null;
+    stopNumber: number;
+  }[];
 };
 
 export function DashboardData() {
@@ -22,7 +29,8 @@ export function DashboardData() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/admin/dashboard")
+    const fetchDashboard = () => {
+      fetch("/api/admin/dashboard")
       .then((r) => {
         if (!r.ok) throw new Error("Failed to fetch dashboard data");
         return r.json();
@@ -35,6 +43,10 @@ export function DashboardData() {
         setError(err.message);
         setLoading(false);
       });
+    };
+    fetchDashboard();
+    const intervalId = window.setInterval(fetchDashboard, 5000);
+    return () => window.clearInterval(intervalId);
   }, []);
 
   if (loading) {
@@ -84,6 +96,44 @@ export function DashboardData() {
             <p className="text-2xl font-bold text-blue-600">{data.tomorrowDinner}</p>
           </div>
         </div>
+      </div>
+
+      <div className="admin-card">
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-semibold text-slate-900">Delivered Updates</h2>
+          <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs text-emerald-700">
+            Live
+          </span>
+        </div>
+        {data.recentDeliveredOrders.length === 0 ? (
+          <p className="text-sm text-slate-500">No delivered orders yet.</p>
+        ) : (
+          <div className="space-y-2">
+            {data.recentDeliveredOrders.map((order) => (
+              <div
+                key={order.id}
+                className="flex items-center justify-between gap-3 rounded-xl border border-slate-100 p-3 text-sm"
+              >
+                <div>
+                  <p className="font-medium text-slate-900">
+                    {order.stopNumber}. {order.customerName}
+                  </p>
+                  <p className="text-slate-500">
+                    {order.mealType.charAt(0) + order.mealType.slice(1).toLowerCase()}
+                  </p>
+                </div>
+                <span className="text-slate-500">
+                  {order.deliveredAt
+                    ? new Date(order.deliveredAt).toLocaleTimeString([], {
+                        hour: "numeric",
+                        minute: "2-digit",
+                      })
+                    : ""}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">

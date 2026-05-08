@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import { compare } from "bcryptjs";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/lib/models";
+import { ApprovalStatus, Role } from "@/lib/constants";
 
 export const authOptions: NextAuthOptions = {
   session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
@@ -23,6 +24,15 @@ export const authOptions: NextAuthOptions = {
           $or: [{ phone: login }, { email: login }],
         }).lean();
         if (!user || !user.password) return null;
+        if (user.isActive === false) {
+          throw new Error("ACCOUNT_DISABLED");
+        }
+        if (
+          user.role === Role.CUSTOMER &&
+          user.approvalStatus === ApprovalStatus.PENDING
+        ) {
+          throw new Error("PENDING_APPROVAL");
+        }
         const ok = await compare(credentials.password, user.password);
         if (!ok) return null;
         return {

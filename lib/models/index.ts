@@ -11,6 +11,10 @@ const UserSchema = new Schema(
     email: { type: String, default: null, sparse: true, unique: true },
     password: { type: String, required: true },
     role: { type: String, default: "CUSTOMER" },
+    approvalStatus: { type: String, default: "APPROVED", index: true },
+    isActive: { type: Boolean, default: true, index: true },
+    approvedAt: { type: Date, default: null },
+    approvedBy: { type: String, default: null },
     address: { type: String, default: null },
     lat: { type: Number, default: null },
     lng: { type: Number, default: null },
@@ -94,6 +98,31 @@ const DayBookingSchema = new Schema(
 );
 DayBookingSchema.index({ userId: 1, date: 1, mealType: 1 }, { unique: true });
 
+const DeliveryOrderSchema = new Schema(
+  {
+    _id: { type: String, default: idDefault },
+    date: { type: Date, required: true, index: true },
+    mealType: { type: String, required: true, index: true },
+    customerId: { type: String, required: true, index: true },
+    customerName: { type: String, required: true },
+    customerPhone: { type: String, default: null },
+    address: { type: String, required: true },
+    lat: { type: Number, required: true },
+    lng: { type: Number, required: true },
+    deliveryPartnerId: { type: String, required: true, index: true },
+    status: { type: String, default: "assigned", index: true },
+    stopNumber: { type: Number, required: true },
+    distanceFromPrev: { type: Number, default: 0 },
+    assignedAt: { type: Date, default: Date.now },
+    deliveredAt: { type: Date, default: null },
+  },
+  { versionKey: false }
+);
+DeliveryOrderSchema.index(
+  { date: 1, mealType: 1, customerId: 1 },
+  { unique: true }
+);
+
 const MessHolidaySchema = new Schema(
   {
     _id: { type: String, default: idDefault },
@@ -119,5 +148,8 @@ export const Leave =
   mongoose.models.Leave ?? mongoose.model("Leave", LeaveSchema);
 export const DayBooking =
   mongoose.models.DayBooking ?? mongoose.model("DayBooking", DayBookingSchema);
+export const DeliveryOrder =
+  mongoose.models.DeliveryOrder ??
+  mongoose.model("DeliveryOrder", DeliveryOrderSchema);
 export const MessHoliday =
   mongoose.models.MessHoliday ?? mongoose.model("MessHoliday", MessHolidaySchema);

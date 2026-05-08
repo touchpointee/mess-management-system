@@ -50,6 +50,7 @@ export default function AccountPage() {
   const [mapOpen, setMapOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const { register, handleSubmit, reset, setValue, watch, formState: { errors } } = useForm<AddLocationForm>({
     resolver: zodResolver(addLocationSchema),
@@ -72,9 +73,15 @@ export default function AccountPage() {
           router.replace("/login?callbackUrl=/account");
           return null;
         }
-        return r.json();
+        const json = await r.json().catch(() => null);
+        if (!r.ok) {
+          setLoadError(json?.message ?? "Could not open account.");
+          return null;
+        }
+        return json;
       })
-      .then((json) => json && setData(json));
+      .then((json) => json && setData(json))
+      .catch(() => setLoadError("Could not open account."));
   }, [router]);
 
   const onAddLocation = async (form: AddLocationForm) => {
@@ -128,7 +135,9 @@ export default function AccountPage() {
   if (!data) {
     return (
       <div className="p-4 flex items-center justify-center min-h-[200px]">
-        <p className="text-gray-500">Loading...</p>
+        <p className={loadError ? "text-red-600" : "text-gray-500"}>
+          {loadError ?? "Loading..."}
+        </p>
       </div>
     );
   }

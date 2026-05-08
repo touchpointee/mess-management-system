@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { connectDB } from "@/lib/mongodb";
 import { User } from "@/lib/models";
-import { Role } from "@/lib/constants";
+import { ApprovalStatus, Role } from "@/lib/constants";
 
 export async function POST(req: Request) {
   try {
@@ -34,8 +34,9 @@ export async function POST(req: Request) {
       email: email?.trim() || null,
       password: hashed,
       role: Role.CUSTOMER,
+      approvalStatus: ApprovalStatus.PENDING,
     });
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, status: ApprovalStatus.PENDING });
   } catch (e) {
     console.error(e);
     return NextResponse.json(

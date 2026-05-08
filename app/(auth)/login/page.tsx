@@ -30,18 +30,24 @@ function LoginPageInner() {
       signOut({ redirect: false });
       return;
     }
+    if (role === "delivery_partner") {
+      router.replace("/delivery/dashboard");
+      return;
+    }
     if (callbackUrl) {
       if (callbackUrl.startsWith("/admin") && role !== "ADMIN") {
-        router.replace("/overview");
+        router.replace("/my-mess");
       } else {
-        router.replace(callbackUrl);
+        router.replace(callbackUrl.startsWith("/") ? callbackUrl : "/my-mess");
       }
       return;
     }
     if (role === "ADMIN") {
       router.replace("/admin/dashboard");
+    } else if (role === "delivery_partner") {
+      router.replace("/delivery/dashboard");
     } else {
-      router.replace("/overview");
+      router.replace("/my-mess");
     }
   }, [session, status, router, callbackUrl, adminOnly]);
 
@@ -62,6 +68,14 @@ function LoginPageInner() {
       redirect: false,
     });
     if (res?.error) {
+      if (res.error === "ACCOUNT_DISABLED") {
+        setError("Your account is disabled. Please contact admin.");
+        return;
+      }
+      if (res.error === "PENDING_APPROVAL") {
+        setError("Your account request is pending admin approval.");
+        return;
+      }
       setError("Invalid phone/email or password.");
       return;
     }

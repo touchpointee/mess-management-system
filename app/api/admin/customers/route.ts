@@ -4,7 +4,7 @@ import { hash } from "bcryptjs";
 import { connectDB } from "@/lib/mongodb";
 import { User, SystemSettings, Payment, Leave, MessHoliday } from "@/lib/models";
 import { applyOfferMealPrices, daysBetween, getBillingSummary } from "@/lib/utils";
-import { Role } from "@/lib/constants";
+import { ApprovalStatus, Role } from "@/lib/constants";
 
 export async function GET(req: Request) {
   const token = await getAuthToken(req);
@@ -12,7 +12,13 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
   await connectDB();
-  const customers = await User.find({ role: Role.CUSTOMER }).lean();
+  const customers = await User.find({
+    role: Role.CUSTOMER,
+    $or: [
+      { approvalStatus: ApprovalStatus.APPROVED },
+      { approvalStatus: { $exists: false } },
+    ],
+  }).lean();
   const customerIds = customers.map((c) => c._id);
   const [paymentsAll, settings, allLeaves, messHolidays] = await Promise.all([
     customerIds.length
@@ -138,6 +144,9 @@ export async function POST(req: Request) {
       email: email?.trim() || null,
       password: hashed,
       role: Role.CUSTOMER,
+      approvalStatus: ApprovalStatus.APPROVED,
+      approvedAt: new Date(),
+      approvedBy: token.sub ?? null,
       address: address?.trim() || null,
       lat: typeof lat === "number" ? lat : null,
       lng: typeof lng === "number" ? lng : null,

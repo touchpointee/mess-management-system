@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { getAuthToken } from "@/lib/getToken";
 import { connectDB } from "@/lib/mongodb";
-import { User, Leave } from "@/lib/models";
+import { DeliveryOrder, User, Leave } from "@/lib/models";
 import { dayRangeFilter } from "@/lib/dayRange";
 import { addDays, format, startOfDay } from "date-fns";
+import { ApprovalStatus, DeliveryOrderStatus, Role } from "@/lib/constants";
 
 export async function GET(req: Request) {
   const token = await getAuthToken(req);
@@ -16,7 +17,14 @@ export async function GET(req: Request) {
 
   const [subscribedCustomers, leavesToday, leavesTomorrow, allCustomers] =
     await Promise.all([
-      User.find({ role: "CUSTOMER", startDate: { $ne: null } })
+      User.find({
+        role: Role.CUSTOMER,
+        startDate: { $ne: null },
+        $or: [
+          { approvalStatus: ApprovalStatus.APPROVED },
+          { approvalStatus: { $exists: false } },
+        ],
+      })
         .select({ _id: 1 })
         .lean(),
       Leave.find({ date: dayRangeFilter(today) })
@@ -25,10 +33,18 @@ export async function GET(req: Request) {
       Leave.find({ date: dayRangeFilter(tomorrow) })
         .select({ userId: 1, mealType: 1 })
         .lean(),
-      User.find({ role: "CUSTOMER" })
+      User.find({ role: Role.CUSTOMER })
         .select({ _id: 1, name: 1, startDate: 1 })
         .lean(),
     ]);
+
+  const recentDeliveredOrders = await DeliveryOrder.find({
+    status: DeliveryOrderStatus.DELIVERED,
+    deliveredAt: { $ne: null },
+  })
+    .sort({ deliveredAt: -1 })
+    .limit(8)
+    .lean();
 
   const activeUserIds = new Set(subscribedCustomers.map((u) => u._id));
   const todayLeaveSet = new Set(leavesToday.map((l) => `${l.userId}:${l.mealType}`));
@@ -80,5 +96,12 @@ export async function GET(req: Request) {
     tomorrowLabel: format(tomorrow, "dd MMM yyyy"),
     activeCustomers,
     leaveSummary,
+    recentDeliveredOrders: recentDeliveredOrders.map((order) => ({
+      id: order._id,
+      customerName: order.customerName,
+      mealType: order.mealType,
+      deliveredAt: order.deliveredAt,
+      stopNumber: order.stopNumber,
+    })),
   });
 }

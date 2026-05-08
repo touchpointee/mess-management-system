@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { signIn } from "next-auth/react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -22,8 +20,8 @@ const schema = z
 type FormData = z.infer<typeof schema>;
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [requestSent, setRequestSent] = useState(false);
 
   const {
     register,
@@ -52,20 +50,33 @@ export default function RegisterPage() {
         setError(json.message ?? "Registration failed.");
         return;
       }
-      const signInRes = await signIn("credentials", {
-        login: data.phone,
-        password: data.password,
-        redirect: false,
-      });
-      if (signInRes?.error) {
-        setError("Account created but sign in failed. Please log in.");
-        return;
-      }
-      router.push("/overview");
-      router.refresh();
+      setRequestSent(true);
     } catch {
       setError("Something went wrong.");
     }
+  }
+
+  if (requestSent) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-[#F5F5F5] p-4">
+        <div className="w-full max-w-sm rounded-2xl bg-white p-6 text-center shadow-card">
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-amber-100 text-xl font-semibold text-amber-700">
+            !
+          </div>
+          <h1 className="mb-2 text-xl font-bold text-slate-900">Request pending</h1>
+          <p className="text-sm leading-6 text-slate-600">
+            Your account request has been sent to the admin. You can use the app
+            after the admin approves your account.
+          </p>
+          <a
+            href="/login"
+            className="mt-5 inline-flex w-full items-center justify-center rounded-lg bg-[#C0392B] py-2.5 font-medium text-white hover:opacity-90"
+          >
+            Back to sign in
+          </a>
+        </div>
+      </div>
+    );
   }
 
   return (
