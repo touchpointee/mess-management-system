@@ -350,7 +350,7 @@ export default function AccountPage() {
         <h2 className="font-semibold mb-3">Session</h2>
         <button
           type="button"
-          onClick={() => signOut({ callbackUrl: "/login" })}
+          onClick={() => signOut({ callbackUrl: window.location.origin + "/login" })}
           className="w-full py-2.5 bg-gray-900 text-white font-medium rounded-lg hover:opacity-90"
         >
           Logout

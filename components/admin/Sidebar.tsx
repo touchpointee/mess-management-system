@@ -6,9 +6,9 @@ import { useEffect, useState } from "react";
 import { signOut } from "next-auth/react";
 
 const links = [
+  { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/customers", label: "Customers" },
   { href: "/admin/requests", label: "Requests" },
-  { href: "/admin/dashboard", label: "Dashboard" },
   { href: "/admin/delivery-map", label: "Delivery Map" },
   { href: "/admin/delivery-partners", label: "Delivery Partners" },
   { href: "/admin/payments", label: "Payments" },
@@ -79,7 +79,7 @@ export function Sidebar() {
             <div className="mt-6 border-t border-slate-200 pt-4">
               <button
                 type="button"
-                onClick={() => signOut({ callbackUrl: "/login" })}
+                onClick={() => signOut({ callbackUrl: window.location.origin + "/login" })}
                 className="admin-btn-secondary w-full"
               >
                 Logout
@@ -102,7 +102,7 @@ export function Sidebar() {
         <div className="mt-auto border-t border-slate-200 pt-4">
           <button
             type="button"
-            onClick={() => signOut({ callbackUrl: "/login" })}
+            onClick={() => signOut({ callbackUrl: window.location.origin + "/login" })}
             className="admin-btn-secondary w-full"
           >
             Logout

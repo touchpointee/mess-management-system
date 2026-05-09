@@ -200,7 +200,7 @@ export default function DeliveryDashboardPage() {
           </div>
           <button
             type="button"
-            onClick={() => signOut({ callbackUrl: "/delivery/login" })}
+            onClick={() => signOut({ callbackUrl: window.location.origin + "/delivery/login" })}
             className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700"
           >
             Logout

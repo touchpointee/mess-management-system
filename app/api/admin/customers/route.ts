@@ -18,7 +18,7 @@ export async function GET(req: Request) {
       { approvalStatus: ApprovalStatus.APPROVED },
       { approvalStatus: { $exists: false } },
     ],
-  }).lean();
+  }).sort({ createdAt: -1 }).lean();
   const customerIds = customers.map((c) => c._id);
   const [paymentsAll, settings, allLeaves, messHolidays] = await Promise.all([
     customerIds.length
