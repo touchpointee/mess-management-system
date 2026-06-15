@@ -79,7 +79,7 @@ export function Sidebar() {
             <div className="mt-6 border-t border-slate-200 pt-4">
               <button
                 type="button"
-                onClick={() => signOut({ callbackUrl: window.location.origin + "/login" })}
+                onClick={() => signOut({ callbackUrl: window.location.origin + "/admin-login" })}
                 className="admin-btn-secondary w-full"
               >
                 Logout
@@ -102,7 +102,7 @@ export function Sidebar() {
         <div className="mt-auto border-t border-slate-200 pt-4">
           <button
             type="button"
-            onClick={() => signOut({ callbackUrl: window.location.origin + "/login" })}
+            onClick={() => signOut({ callbackUrl: window.location.origin + "/admin-login" })}
             className="admin-btn-secondary w-full"
           >
             Logout
