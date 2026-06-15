@@ -19,10 +19,10 @@ export async function GET(req: Request) {
     Payment.find({ userId }).sort({ date: -1 }).lean(),
     DeliveryLocation.find({ userId }).lean(),
     Leave.find({ userId }).select({ date: 1, mealType: 1 }).lean(),
-    MessHoliday.find().lean() as Promise<{ date: Date; mealType: string }[]>,
+    MessHoliday.find({ messId: (token?.messId as string) || "default" }).lean() as Promise<{ date: Date; mealType: string }[]>,
   ]);
   const today = new Date();
-  const settings = await SystemSettings.findById("default")
+  const settings = await SystemSettings.findById((token?.messId as string) || "default")
     .select({ breakfastPrice: 1, lunchPrice: 1, dinnerPrice: 1 })
     .lean();
   const mealPrices = {

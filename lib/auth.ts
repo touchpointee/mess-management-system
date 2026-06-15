@@ -40,6 +40,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           email: user.email ?? undefined,
           role: user.role,
+          messId: (user as any).messId ?? "default",
         };
       },
     }),
@@ -50,6 +51,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.sub = user.id;
         token.role = (user as { role?: string }).role;
+        token.messId = (user as { messId?: string }).messId ?? "default";
       }
       return token;
     },
@@ -57,6 +59,7 @@ export const authOptions: NextAuthOptions = {
       if (session.user) {
         (session.user as { id?: string }).id = (token.sub as string) || (token.id as string);
         (session.user as { role?: string }).role = token.role as string;
+        (session.user as { messId?: string }).messId = (token.messId as string) ?? "default";
       }
       return session;
     },

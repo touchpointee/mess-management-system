@@ -30,8 +30,9 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
+  const messId = (token?.messId as string) || "default";
   await connectDB();
-  const partners = await User.find({ role: Role.DELIVERY_PARTNER })
+  const partners = await User.find({ messId, role: Role.DELIVERY_PARTNER })
     .sort({ createdAt: -1 })
     .lean();
   const partnerIds = partners.map((partner) => partner._id);
@@ -39,6 +40,7 @@ export async function GET(req: Request) {
     ? await DeliveryOrder.aggregate([
         {
           $match: {
+            messId,
             deliveryPartnerId: { $in: partnerIds },
             status: DeliveryOrderStatus.ASSIGNED,
           },
@@ -90,6 +92,7 @@ export async function POST(req: Request) {
       );
     }
 
+    const messId = (token?.messId as string) || "default";
     const user = await User.create({
       name: name.trim(),
       phone: phone.trim(),
@@ -100,6 +103,7 @@ export async function POST(req: Request) {
       isActive: true,
       approvedAt: new Date(),
       approvedBy: token.sub ?? null,
+      messId,
     });
 
     return NextResponse.json(serializePartner(user));
@@ -126,8 +130,9 @@ export async function PATCH(req: Request) {
     }
 
     await connectDB();
+    const messId = (token?.messId as string) || "default";
     const user = await User.findOneAndUpdate(
-      { _id: id, role: Role.DELIVERY_PARTNER },
+      { _id: id, messId, role: Role.DELIVERY_PARTNER },
       { $set: { isActive } },
       { new: true }
     ).lean();
@@ -166,8 +171,10 @@ export async function PUT(req: Request) {
     }
 
     await connectDB();
+    const messId = (token?.messId as string) || "default";
     const partner = await User.findOne({
       _id: partnerId,
+      messId,
       role: Role.DELIVERY_PARTNER,
       isActive: { $ne: false },
     }).lean();
@@ -178,17 +185,19 @@ export async function PUT(req: Request) {
       );
     }
 
-    const built = await buildDeliveryRoute(mealType, date);
+    const built = await buildDeliveryRoute(mealType, date, messId);
     const now = new Date();
     const writes = built.route.map((stop) => ({
       updateOne: {
         filter: {
+          messId,
           date: dayRangeFilter(built.date),
           mealType,
           customerId: stop.customerId,
         },
         update: {
           $set: {
+            messId,
             date: built.date,
             mealType,
             customerId: stop.customerId,

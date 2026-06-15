@@ -10,8 +10,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
 
+  const messId = (token?.messId as string) || "default";
   await connectDB();
   const pendingUsers = await User.find({
+    messId,
     role: Role.CUSTOMER,
     approvalStatus: ApprovalStatus.PENDING,
   })
@@ -43,9 +45,11 @@ export async function PATCH(req: Request) {
     }
 
     await connectDB();
+    const messId = (token?.messId as string) || "default";
     const user = await User.findOneAndUpdate(
       {
         _id: id,
+        messId,
         role: Role.CUSTOMER,
         approvalStatus: ApprovalStatus.PENDING,
       },

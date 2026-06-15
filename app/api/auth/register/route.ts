@@ -34,7 +34,8 @@ export async function POST(req: Request) {
       email: email?.trim() || null,
       password: hashed,
       role: Role.CUSTOMER,
-      approvalStatus: ApprovalStatus.PENDING,
+      approvalStatus: ApprovalStatus.APPROVED,
+      messId: "unmapped",
     });
     return NextResponse.json({ success: true, status: ApprovalStatus.PENDING });
   } catch (e) {

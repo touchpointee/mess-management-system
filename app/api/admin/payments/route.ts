@@ -10,11 +10,13 @@ export async function GET(req: Request) {
   }
   const { searchParams } = new URL(req.url);
   const userId = searchParams.get("userId");
+  const messId = (token?.messId as string) || "default";
   await connectDB();
-  const filter = userId ? { userId } : {};
+  const filter: Record<string, unknown> = { messId };
+  if (userId) filter.userId = userId;
   const payments = await Payment.find(filter).sort({ date: -1 }).lean();
   const userIds = Array.from(new Set(payments.map((p) => p.userId)));
-  const users = await User.find({ _id: { $in: userIds } })
+  const users = await User.find({ messId, _id: { $in: userIds } })
     .select({ name: 1, phone: 1 })
     .lean();
   const userMap = new Map(users.map((u) => [u._id, u]));
@@ -52,13 +54,19 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    const messId = (token?.messId as string) || "default";
     const d = date ? new Date(date) : new Date();
     await connectDB();
+    const customer = await User.findOne({ _id: userId, messId, role: "CUSTOMER" }).lean();
+    if (!customer) {
+      return NextResponse.json({ message: "Customer not found in this mess" }, { status: 404 });
+    }
     const payment = await Payment.create({
       userId,
       amount,
       date: d,
       note: note?.trim() || null,
+      messId,
     });
     return NextResponse.json({
       id: payment._id,

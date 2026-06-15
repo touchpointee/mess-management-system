@@ -31,10 +31,11 @@ const DEFAULT_SETTINGS: SystemSettingsData = {
   heroImageUrl: process.env.MESS_HERO_IMAGE_URL || null,
 };
 
-export async function getSystemSettings(): Promise<SystemSettingsData> {
+export async function getSystemSettings(messId?: string): Promise<SystemSettingsData> {
   try {
     await connectDB();
-    const settings = await SystemSettings.findById("default").lean();
+    const targetId = messId || "default";
+    const settings = await SystemSettings.findById(targetId).lean();
     if (!settings) {
       return DEFAULT_SETTINGS;
     }

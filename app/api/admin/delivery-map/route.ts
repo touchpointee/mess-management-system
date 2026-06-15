@@ -22,9 +22,10 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: "Invalid meal type" }, { status: 400 });
   }
 
+  const messId = (token?.messId as string) || "default";
   await connectDB();
   try {
-    return NextResponse.json(await buildDeliveryRoute(meal, dateStr));
+    return NextResponse.json(await buildDeliveryRoute(meal, dateStr, messId));
   } catch {
     return NextResponse.json({ message: "Invalid date" }, { status: 400 });
   }

@@ -10,10 +10,11 @@ export async function GET(req: Request) {
   if (token?.role !== "ADMIN") {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
+  const messId = (token?.messId as string) || "default";
   await connectDB();
   
   // Return all holidays in ascending order
-  const holidays = await MessHoliday.find({})
+  const holidays = await MessHoliday.find({ messId })
     .sort({ date: -1 })
     .lean();
     
@@ -43,6 +44,7 @@ export async function POST(req: Request) {
 
     await connectDB();
     
+    const messId = (token?.messId as string) || "default";
     let addedCount = 0;
     for (const dateStr of dates) {
       const d = startOfDay(new Date(dateStr));
@@ -52,6 +54,7 @@ export async function POST(req: Request) {
         await MessHoliday.create({
           date: d,
           mealType: mealType,
+          messId,
         });
         addedCount++;
       } catch (err: any) {
@@ -82,8 +85,9 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ message: "id is required" }, { status: 400 });
     }
 
+    const messId = (token?.messId as string) || "default";
     await connectDB();
-    await MessHoliday.deleteOne({ _id: id });
+    await MessHoliday.deleteOne({ _id: id, messId });
     return NextResponse.json({ success: true });
   } catch (e) {
     console.error(e);

@@ -9,19 +9,20 @@ export async function GET(req: Request) {
   if (token?.role !== "ADMIN") {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
+  const messId = (token?.messId as string) || "default";
   await connectDB();
-  const customers = await User.find({ role: "CUSTOMER" }).lean();
+  const customers = await User.find({ messId, role: "CUSTOMER" }).lean();
   const customerIds = customers.map((c) => c._id);
   const [paymentsAll, settings, messHolidays, allLeaves] = await Promise.all([
     customerIds.length
-      ? Payment.find({ userId: { $in: customerIds } }).lean()
+      ? Payment.find({ messId, userId: { $in: customerIds } }).lean()
       : Promise.resolve([]),
-    SystemSettings.findById("default")
+    SystemSettings.findById(messId)
       .select({ breakfastPrice: 1, lunchPrice: 1, dinnerPrice: 1 })
       .lean(),
-    MessHoliday.find().lean() as Promise<{ date: Date; mealType: string }[]>,
+    MessHoliday.find({ messId }).lean() as Promise<{ date: Date; mealType: string }[]>,
     customerIds.length
-      ? Leave.find({ userId: { $in: customerIds } }).select({
+      ? Leave.find({ messId, userId: { $in: customerIds } }).select({
           userId: 1,
           date: 1,
           mealType: 1,

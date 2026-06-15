@@ -40,7 +40,14 @@ export async function POST(req: Request) {
       for (const meal of Array.from(mealSet)) {
         await Leave.findOneAndUpdate(
           { userId, date, mealType: meal },
-          { $setOnInsert: { userId, date, mealType: meal } },
+          {
+            $setOnInsert: {
+              userId,
+              date,
+              mealType: meal,
+              messId: (token?.messId as string) || "default",
+            },
+          },
           { upsert: true, new: true, setDefaultsOnInsert: true }
         );
         count++;

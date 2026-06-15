@@ -4,8 +4,10 @@ import { getAuthToken } from "@/lib/getToken";
 import { connectDB } from "@/lib/mongodb";
 import { SystemSettings } from "@/lib/models";
 
-export async function GET() {
-  const settings = await getSystemSettings();
+export async function GET(req: Request) {
+  const token = await getAuthToken(req);
+  const messId = (token?.messId as string) || "default";
+  const settings = await getSystemSettings(messId);
   return NextResponse.json(settings);
 }
 
@@ -24,6 +26,7 @@ export async function PUT(req: Request) {
   if (token?.role !== "ADMIN") {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
+  const messId = (token?.messId as string) || "default";
   try {
     const body = await req.json();
     const businessName = String(body?.businessName ?? "").trim();
@@ -69,10 +72,10 @@ export async function PUT(req: Request) {
       );
     }
 
-    const current = await getSystemSettings();
+    const current = await getSystemSettings(messId);
     await connectDB();
     await SystemSettings.findOneAndUpdate(
-      { _id: "default" },
+      { _id: messId },
       {
         $set: {
           businessName,
@@ -85,7 +88,7 @@ export async function PUT(req: Request) {
           dinnerPrice,
         },
         $setOnInsert: {
-          _id: "default",
+          _id: messId,
           shortName: current.shortName,
           phone: current.phone,
           supportEmail: current.supportEmail,

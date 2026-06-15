@@ -16,13 +16,14 @@ export type DeliveryRouteStop = {
   distanceFromPrev: number;
 };
 
-export async function buildDeliveryRoute(meal: string, dateInput: string | Date) {
+export async function buildDeliveryRoute(meal: string, dateInput: string | Date, messId = "default") {
   const date = startOfDay(new Date(dateInput));
   if (isNaN(date.getTime())) {
     throw new Error("Invalid date");
   }
 
   const subscribedUsers = await User.find({
+    messId,
     role: Role.CUSTOMER,
     startDate: { $ne: null },
     $or: [
@@ -32,14 +33,16 @@ export async function buildDeliveryRoute(meal: string, dateInput: string | Date)
   }).lean();
   const userIds = subscribedUsers.map((u) => u._id);
   const [locationsByUser, leaves, bookings] = await Promise.all([
-    DeliveryLocation.find({ userId: { $in: userIds } }).lean(),
+    DeliveryLocation.find({ messId, userId: { $in: userIds } }).lean(),
     Leave.find({
+      messId,
       date: dayRangeFilter(date),
       mealType: meal,
     })
       .select({ userId: 1 })
       .lean(),
     DayBooking.find({
+      messId,
       date: dayRangeFilter(date),
       mealType: meal,
     })
@@ -88,7 +91,7 @@ export async function buildDeliveryRoute(meal: string, dateInput: string | Date)
     }
   }
 
-  const settings = await getSystemSettings();
+  const settings = await getSystemSettings(messId);
   const start = { lat: settings.lat, lng: settings.lng };
   const ordered = nearestNeighborTSP(start, stops);
   const { legKm, totalKm } = routeDistances(

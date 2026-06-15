@@ -23,6 +23,7 @@ const UserSchema = new Schema(
     offerBreakfastPrice: { type: Number, default: null },
     offerLunchPrice: { type: Number, default: null },
     offerDinnerPrice: { type: Number, default: null },
+    messId: { type: String, default: "default", index: true },
     createdAt: { type: Date, default: Date.now },
   },
   { versionKey: false }
@@ -54,6 +55,7 @@ const PaymentSchema = new Schema(
     amount: { type: Number, required: true },
     date: { type: Date, required: true },
     note: { type: String, default: null },
+    messId: { type: String, default: "default", index: true },
     createdAt: { type: Date, default: Date.now },
   },
   { versionKey: false }
@@ -69,6 +71,7 @@ const DeliveryLocationSchema = new Schema(
     lng: { type: Number, required: true },
     mealType: { type: String, required: true },
     isDefault: { type: Boolean, default: false },
+    messId: { type: String, default: "default", index: true },
   },
   { versionKey: false }
 );
@@ -79,6 +82,7 @@ const LeaveSchema = new Schema(
     userId: { type: String, required: true, index: true },
     date: { type: Date, required: true },
     mealType: { type: String, required: true },
+    messId: { type: String, default: "default", index: true },
     createdAt: { type: Date, default: Date.now },
   },
   { versionKey: false }
@@ -92,6 +96,7 @@ const DayBookingSchema = new Schema(
     date: { type: Date, required: true },
     mealType: { type: String, required: true },
     deliveryLocationId: { type: String, required: true },
+    messId: { type: String, default: "default", index: true },
     createdAt: { type: Date, default: Date.now },
   },
   { versionKey: false }
@@ -113,6 +118,7 @@ const DeliveryOrderSchema = new Schema(
     status: { type: String, default: "assigned", index: true },
     stopNumber: { type: Number, required: true },
     distanceFromPrev: { type: Number, default: 0 },
+    messId: { type: String, default: "default", index: true },
     assignedAt: { type: Date, default: Date.now },
     deliveredAt: { type: Date, default: null },
   },
@@ -128,11 +134,12 @@ const MessHolidaySchema = new Schema(
     _id: { type: String, default: idDefault },
     date: { type: Date, required: true },
     mealType: { type: String, required: true }, // "ALL", "BREAKFAST", "LUNCH", "DINNER"
+    messId: { type: String, default: "default", index: true },
     createdAt: { type: Date, default: Date.now },
   },
   { versionKey: false }
 );
-MessHolidaySchema.index({ date: 1, mealType: 1 }, { unique: true });
+MessHolidaySchema.index({ date: 1, mealType: 1, messId: 1 }, { unique: true });
 
 export const User =
   mongoose.models.User ?? mongoose.model("User", UserSchema);

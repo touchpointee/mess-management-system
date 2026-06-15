@@ -25,7 +25,7 @@ export async function GET(
   );
   const { id } = await params;
   await connectDB();
-  const user = await User.findOne({ _id: id, role: "CUSTOMER" }).lean();
+  const user = await User.findOne({ _id: id, messId: (token?.messId as string) || "default", role: "CUSTOMER" }).lean();
   if (!user) {
     return NextResponse.json({ message: "Customer not found" }, { status: 404 });
   }
@@ -49,10 +49,10 @@ export async function GET(
       Leave.countDocuments({ userId: id }).exec(),
       DayBooking.countDocuments({ userId: id }).exec(),
       Leave.find({ userId: id }).select({ date: 1, mealType: 1 }).lean(),
-      MessHoliday.find().lean() as Promise<{ date: Date; mealType: string }[]>,
+      MessHoliday.find({ messId: (token?.messId as string) || "default" }).lean() as Promise<{ date: Date; mealType: string }[]>,
     ]);
   const today = new Date();
-  const settings = await SystemSettings.findById("default")
+  const settings = await SystemSettings.findById((token?.messId as string) || "default")
     .select({ breakfastPrice: 1, lunchPrice: 1, dinnerPrice: 1 })
     .lean();
   const mealPrices = {
@@ -182,7 +182,7 @@ export async function PATCH(
   }
   const { id } = await params;
   await connectDB();
-  const user = await User.findOne({ _id: id, role: "CUSTOMER" }).lean();
+  const user = await User.findOne({ _id: id, messId: (token?.messId as string) || "default", role: "CUSTOMER" }).lean();
   if (!user) {
     return NextResponse.json({ message: "Customer not found" }, { status: 404 });
   }

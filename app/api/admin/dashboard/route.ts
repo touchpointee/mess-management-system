@@ -11,6 +11,7 @@ export async function GET(req: Request) {
   if (token?.role !== "ADMIN") {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
+  const messId = (token?.messId as string) || "default";
   await connectDB();
   const today = startOfDay(new Date());
   const tomorrow = addDays(today, 1);
@@ -18,6 +19,7 @@ export async function GET(req: Request) {
   const [subscribedCustomers, leavesToday, leavesTomorrow, allCustomers] =
     await Promise.all([
       User.find({
+        messId,
         role: Role.CUSTOMER,
         startDate: { $ne: null },
         $or: [
@@ -27,18 +29,19 @@ export async function GET(req: Request) {
       })
         .select({ _id: 1 })
         .lean(),
-      Leave.find({ date: dayRangeFilter(today) })
+      Leave.find({ messId, date: dayRangeFilter(today) })
         .select({ userId: 1, mealType: 1 })
         .lean(),
-      Leave.find({ date: dayRangeFilter(tomorrow) })
+      Leave.find({ messId, date: dayRangeFilter(tomorrow) })
         .select({ userId: 1, mealType: 1 })
         .lean(),
-      User.find({ role: Role.CUSTOMER })
+      User.find({ messId, role: Role.CUSTOMER })
         .select({ _id: 1, name: 1, startDate: 1 })
         .lean(),
     ]);
 
   const recentDeliveredOrders = await DeliveryOrder.find({
+    messId,
     status: DeliveryOrderStatus.DELIVERED,
     deliveredAt: { $ne: null },
   })

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { CustomerTable } from "@/components/admin/CustomerTable";
 import { AddCustomerModal } from "./AddCustomerModal";
+import { MapCustomerModal } from "./MapCustomerModal";
 
 type CustomerRow = {
   id: string;
@@ -20,6 +21,7 @@ export default function CustomersClient() {
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [search, setSearch] = useState("");
   const [modalOpen, setModalOpen] = useState(false);
+  const [mapModalOpen, setMapModalOpen] = useState(false);
 
   const fetchCustomers = useCallback(() => {
     fetch("/api/admin/customers", { credentials: "include" })
@@ -63,13 +65,22 @@ export default function CustomersClient() {
           <h1 className="admin-title">Mess</h1>
           <p className="admin-subtitle">Customers management, billing start dates, and balances.</p>
         </div>
-        <button
-          type="button"
-          onClick={() => setModalOpen(true)}
-          className="admin-btn-primary w-full sm:w-auto"
-        >
-          Add Customer
-        </button>
+        <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setMapModalOpen(true)}
+            className="admin-btn-secondary w-full sm:w-auto"
+          >
+            Map Registered User
+          </button>
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="admin-btn-primary w-full sm:w-auto"
+          >
+            Add Customer
+          </button>
+        </div>
       </header>
 
       <div className="mt-6">
@@ -79,7 +90,16 @@ export default function CustomersClient() {
       <CustomerTable customers={customers} search={search} onSearchChange={setSearch} />
 
       <AddCustomerModal open={modalOpen} onClose={() => setModalOpen(false)} onAdded={onAdded} />
+      <MapCustomerModal
+        open={mapModalOpen}
+        onClose={() => setMapModalOpen(false)}
+        onMapped={() => {
+          setMapModalOpen(false);
+          fetchCustomers();
+        }}
+      />
     </div>
   );
 }
+
 

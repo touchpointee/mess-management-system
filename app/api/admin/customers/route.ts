@@ -11,8 +11,10 @@ export async function GET(req: Request) {
   if (token?.role !== "ADMIN") {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
+  const messId = (token?.messId as string) || "default";
   await connectDB();
   const customers = await User.find({
+    messId,
     role: Role.CUSTOMER,
     $or: [
       { approvalStatus: ApprovalStatus.APPROVED },
@@ -22,19 +24,19 @@ export async function GET(req: Request) {
   const customerIds = customers.map((c) => c._id);
   const [paymentsAll, settings, allLeaves, messHolidays] = await Promise.all([
     customerIds.length
-      ? Payment.find({ userId: { $in: customerIds } }).lean()
+      ? Payment.find({ messId, userId: { $in: customerIds } }).lean()
       : Promise.resolve([]),
-    SystemSettings.findById("default")
+    SystemSettings.findById(messId)
       .select({ breakfastPrice: 1, lunchPrice: 1, dinnerPrice: 1 })
       .lean(),
     customerIds.length
-      ? Leave.find({ userId: { $in: customerIds } }).select({
+      ? Leave.find({ messId, userId: { $in: customerIds } }).select({
           userId: 1,
           date: 1,
           mealType: 1,
         }).lean()
       : Promise.resolve([]),
-    MessHoliday.find().lean(),
+    MessHoliday.find({ messId }).lean(),
   ]);
   const paymentsByUser = new Map<string, { amount: number }[]>();
   for (const p of paymentsAll) {
@@ -98,6 +100,7 @@ export async function POST(req: Request) {
   if (token?.role !== "ADMIN") {
     return NextResponse.json({ message: "Forbidden" }, { status: 403 });
   }
+  const messId = (token?.messId as string) || "default";
   try {
     const body = await req.json();
     const {
@@ -150,6 +153,7 @@ export async function POST(req: Request) {
       address: address?.trim() || null,
       lat: typeof lat === "number" ? lat : null,
       lng: typeof lng === "number" ? lng : null,
+      messId: messId,
       ...(startDate ? { startDate: new Date(startDate) } : {}),
       ...(endDate ? { endDate: new Date(endDate) } : {}),
     });

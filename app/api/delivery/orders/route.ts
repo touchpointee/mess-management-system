@@ -52,6 +52,7 @@ export async function GET(req: Request) {
     return NextResponse.json({ message: "Account disabled" }, { status: 403 });
   }
   const filter: Record<string, unknown> = {
+    messId: (token?.messId as string) || "default",
     date: dayRangeFilter(date),
     mealType: meal,
   };
@@ -59,7 +60,7 @@ export async function GET(req: Request) {
     filter.deliveryPartnerId = token.sub;
   }
   const orders = await DeliveryOrder.find(filter).sort({ stopNumber: 1 }).lean();
-  const settings = await getSystemSettings();
+  const settings = await getSystemSettings((token?.messId as string) || "default");
   const start = { lat: settings.lat, lng: settings.lng };
   const { totalKm } = routeDistances(
     start,
@@ -106,7 +107,7 @@ export async function PATCH(req: Request) {
     if (!(await ensureActiveDeliveryPartner(token))) {
       return NextResponse.json({ message: "Account disabled" }, { status: 403 });
     }
-    const filter: Record<string, unknown> = { _id: id };
+    const filter: Record<string, unknown> = { _id: id, messId: (token?.messId as string) || "default" };
     if (token.role === Role.DELIVERY_PARTNER) {
       filter.deliveryPartnerId = token.sub;
     }

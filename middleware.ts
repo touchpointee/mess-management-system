@@ -7,6 +7,13 @@ export default async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
   const token = await getToken({ req });
 
+  if (path === "/super-admin" || path.startsWith("/super-admin/")) {
+    if (token?.role !== "SUPER_ADMIN") {
+      return NextResponse.redirect(new URL("/login", req.url));
+    }
+    return NextResponse.next();
+  }
+
   if (path === "/admin/login") {
     if (token?.role === Role.ADMIN) {
       return NextResponse.redirect(new URL("/admin/dashboard", req.url));
@@ -42,6 +49,9 @@ export default async function middleware(req: NextRequest) {
     if (!token) {
       return NextResponse.redirect(new URL("/login", req.url));
     }
+    if (token.role === "SUPER_ADMIN") {
+      return NextResponse.redirect(new URL("/super-admin", req.url));
+    }
     if (token.role === Role.ADMIN) {
       return NextResponse.redirect(new URL("/admin/dashboard", req.url));
     }
@@ -75,6 +85,9 @@ export default async function middleware(req: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
   if (customerProtected.includes(path)) {
+    if (token?.role === "SUPER_ADMIN") {
+      return NextResponse.redirect(new URL("/super-admin", req.url));
+    }
     if (token?.role === Role.ADMIN) {
       return NextResponse.redirect(new URL("/admin/dashboard", req.url));
     }
@@ -105,5 +118,7 @@ export const config = {
     "/admin-login",
     "/login",
     "/register",
+    "/super-admin",
+    "/super-admin/:path*",
   ],
 };

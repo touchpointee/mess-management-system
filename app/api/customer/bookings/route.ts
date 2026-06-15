@@ -48,7 +48,10 @@ export async function POST(req: Request) {
     }
     await DayBooking.findOneAndUpdate(
       { userId, date: d, mealType },
-      { $set: { deliveryLocationId } },
+      {
+        $set: { deliveryLocationId },
+        $setOnInsert: { messId: (token?.messId as string) || "default" },
+      },
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
     return NextResponse.json({ success: true });

@@ -23,14 +23,14 @@ export async function GET(req: Request) {
   }
 
   await connectDB();
-  const [user, leaves, locations, bookings, holidays] = await Promise.all([
-    User.findById(userId).select({ startDate: 1 }).lean(),
+  const user = await User.findById(userId).select({ startDate: 1, messId: 1 }).lean();
+  const [leaves, locations, bookings, holidays] = await Promise.all([
     Leave.find({ userId, date: dayRangeFilter(date) }).select({ mealType: 1 }).lean(),
     DeliveryLocation.find({ userId }).sort({ isDefault: -1 }).lean(),
     DayBooking.find({ userId, date: dayRangeFilter(date) })
       .select({ mealType: 1, deliveryLocationId: 1 })
       .lean(),
-    MessHoliday.find({ date: dayRangeFilter(date) }).lean()
+    MessHoliday.find({ messId: user?.messId || "default", date: dayRangeFilter(date) }).lean()
   ]);
 
   const billingStart = user?.startDate ? startOfDay(new Date(user.startDate)) : null;

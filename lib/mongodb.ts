@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { runSaaSMigration } from "./migrations";
 
 const uri = process.env.MONGODB_URI;
 
@@ -29,9 +30,17 @@ export async function connectDB(): Promise<typeof mongoose> {
     return cache.conn;
   }
   if (!cache.promise) {
-    cache.promise = mongoose.connect(uri, {
-      bufferCommands: false,
-    });
+    cache.promise = mongoose
+      .connect(uri, {
+        bufferCommands: false,
+      })
+      .then(async (conn) => {
+        // Run background migrations once the database connects
+        await runSaaSMigration().catch((err) =>
+          console.error("SaaS Migration failed during connectDB:", err)
+        );
+        return conn;
+      });
   }
   cache.conn = await cache.promise;
   return cache.conn;

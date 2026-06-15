@@ -25,6 +25,10 @@ function LoginPageInner() {
   useEffect(() => {
     if (status !== "authenticated" || !session?.user) return;
     const role = (session.user as { role?: string }).role;
+    if (role === "SUPER_ADMIN") {
+      router.replace("/super-admin");
+      return;
+    }
     if (adminOnly && role !== "ADMIN") {
       setError("Admin login required. Please use an admin account.");
       signOut({ redirect: false });
