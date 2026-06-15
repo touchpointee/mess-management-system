@@ -160,3 +160,18 @@ export const DeliveryOrder =
   mongoose.model("DeliveryOrder", DeliveryOrderSchema);
 export const MessHoliday =
   mongoose.models.MessHoliday ?? mongoose.model("MessHoliday", MessHolidaySchema);
+
+const PreMappedPhoneSchema = new Schema(
+  {
+    _id: { type: String, default: idDefault },
+    phone: { type: String, required: true, unique: true, index: true },
+    messId: { type: String, required: true, index: true },
+    createdAt: { type: Date, default: Date.now },
+  },
+  { versionKey: false }
+);
+
+export const PreMappedPhone =
+  mongoose.models.PreMappedPhone ??
+  mongoose.model("PreMappedPhone", PreMappedPhoneSchema);
+

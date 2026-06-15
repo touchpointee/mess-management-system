@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { hash } from "bcryptjs";
 import { connectDB } from "@/lib/mongodb";
-import { User } from "@/lib/models";
+import { User, PreMappedPhone } from "@/lib/models";
 import { ApprovalStatus, Role } from "@/lib/constants";
 
 export async function POST(req: Request) {
@@ -28,6 +28,11 @@ export async function POST(req: Request) {
       );
     }
     const hashed = await hash(password, 12);
+
+    // Check if the phone number is pre-mapped to a mess
+    const preMapped = await PreMappedPhone.findOne({ phone: phone.trim() }).lean();
+    const messId = preMapped ? preMapped.messId : "unmapped";
+
     await User.create({
       name: name.trim(),
       phone: phone.trim(),
@@ -35,9 +40,9 @@ export async function POST(req: Request) {
       password: hashed,
       role: Role.CUSTOMER,
       approvalStatus: ApprovalStatus.APPROVED,
-      messId: "unmapped",
+      messId,
     });
-    return NextResponse.json({ success: true, status: ApprovalStatus.PENDING });
+    return NextResponse.json({ success: true, status: ApprovalStatus.APPROVED });
   } catch (e) {
     console.error(e);
     return NextResponse.json(
